@@ -122,7 +122,7 @@ cd openclaw-proactive-assistant
 
 ## Pricing
 
-**Pro Tier:** $20/month
+**Pro Tier:** $30/month
 - V6 + V7 + V8 included
 - Full autonomous operation
 - Self-learning and self-healing
