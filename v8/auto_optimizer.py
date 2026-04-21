@@ -27,6 +27,38 @@ from telegram_notifier import TelegramNotifier
 from multi_account_email_analyzer import MultiAccountEmailAnalyzer
 from multi_account_calendar_analyzer import MultiAccountCalendarAnalyzer
 
+# NEW: Import all 4 critical analyzers
+try:
+    from location_analyzer import LocationAnalyzer
+except ImportError:
+    LocationAnalyzer = None
+
+try:
+    from cross_device_observer.mobile.ios_observer import iOSObserver
+except ImportError:
+    iOSObserver = None
+
+try:
+    from file_operations_analyzer import FileOperationsAnalyzer
+except ImportError:
+    FileOperationsAnalyzer = None
+
+try:
+    from browser_history_analyzer import BrowserHistoryAnalyzer
+except ImportError:
+    BrowserHistoryAnalyzer = None
+
+try:
+    from daemon_pattern_analyzer import DaemonPatternAnalyzer
+except ImportError:
+    DaemonPatternAnalyzer = None
+
+# NEW: Chief of Staff Integration
+try:
+    from chief_of_staff_adapter import ChiefOfStaffV8Adapter
+except ImportError:
+    ChiefOfStaffV8Adapter = None
+
 
 class AutoOptimizer:
     """Automatically generate optimizations from patterns"""
@@ -36,6 +68,17 @@ class AutoOptimizer:
         self.shell_analyzer = ShellHistoryAnalyzer()  # User shell patterns
         self.email_analyzer = MultiAccountEmailAnalyzer()  # Email patterns
         self.calendar_analyzer = MultiAccountCalendarAnalyzer()  # Calendar patterns
+        
+        # NEW: Initialize critical analyzers
+        self.location_analyzer = LocationAnalyzer() if LocationAnalyzer else None
+        self.ios_observer = iOSObserver() if iOSObserver else None
+        self.file_ops_analyzer = FileOperationsAnalyzer() if FileOperationsAnalyzer else None
+        self.browser_analyzer = BrowserHistoryAnalyzer() if BrowserHistoryAnalyzer else None
+        self.daemon_analyzer = DaemonPatternAnalyzer() if DaemonPatternAnalyzer else None
+        
+        # NEW: Chief of Staff intelligence layer
+        self.cos_adapter = ChiefOfStaffV8Adapter() if ChiefOfStaffV8Adapter else None
+        
         self.code_generator = CodeGenerator()
         self.deployment_manager = DeploymentManager(
             auto_approve_threshold=0.90,
@@ -75,6 +118,36 @@ class AutoOptimizer:
         device_patterns = self._get_device_patterns()
         all_patterns.extend(device_patterns)
         print(f"   Device patterns: {len(device_patterns)}")
+        
+        # 6. NEW: Get location patterns (GPS + geofence)
+        location_patterns = self._get_location_patterns()
+        all_patterns.extend(location_patterns)
+        print(f"   Location patterns: {len(location_patterns)}")
+        
+        # 7. NEW: Get mobile usage patterns (iOS app usage)
+        mobile_patterns = self._get_mobile_patterns()
+        all_patterns.extend(mobile_patterns)
+        print(f"   Mobile patterns: {len(mobile_patterns)}")
+        
+        # 8. NEW: Get file operation patterns
+        file_patterns = self._get_file_patterns()
+        all_patterns.extend(file_patterns)
+        print(f"   File patterns: {len(file_patterns)}")
+        
+        # 9. NEW: Get browser workflow patterns
+        browser_patterns = self._get_browser_patterns()
+        all_patterns.extend(browser_patterns)
+        print(f"   Browser patterns: {len(browser_patterns)}")
+        
+        # 10. NEW: Get daemon health patterns
+        daemon_patterns = self._get_daemon_patterns()
+        all_patterns.extend(daemon_patterns)
+        print(f"   Daemon patterns: {len(daemon_patterns)}")
+        
+        # 11. NEW: Get Chief of Staff intelligence patterns
+        cos_patterns = self._get_cos_patterns()
+        all_patterns.extend(cos_patterns)
+        print(f"   Chief of Staff patterns: {len(cos_patterns)}")
         
         return all_patterns
     
@@ -656,3 +729,85 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
+    def _get_location_patterns(self) -> List[Dict]:
+        """Get patterns from location analyzer (NEW)"""
+        if not self.location_analyzer:
+            return []
+        
+        try:
+            return self.location_analyzer.get_patterns()
+        except Exception as e:
+            print(f"⚠️  Location analyzer error: {e}")
+            return []
+    
+    def _get_mobile_patterns(self) -> List[Dict]:
+        """Get patterns from iOS mobile observer (NEW)"""
+        if not self.ios_observer:
+            return []
+        
+        try:
+            return self.ios_observer.get_patterns()
+        except Exception as e:
+            print(f"⚠️  Mobile observer error: {e}")
+            return []
+    
+    def _get_file_patterns(self) -> List[Dict]:
+        """Get patterns from file operations analyzer (NEW)"""
+        if not self.file_ops_analyzer:
+            return []
+        
+        try:
+            return self.file_ops_analyzer.get_patterns()
+        except Exception as e:
+            print(f"⚠️  File operations analyzer error: {e}")
+            return []
+    
+    def _get_browser_patterns(self) -> List[Dict]:
+        """Get patterns from browser history analyzer (NEW)"""
+        if not self.browser_analyzer:
+            return []
+        
+        try:
+            return self.browser_analyzer.get_patterns()
+        except Exception as e:
+            print(f"⚠️  Browser history analyzer error: {e}")
+            return []
+    
+    def _get_daemon_patterns(self) -> List[Dict]:
+        """Get patterns from daemon monitor (NEW)"""
+        if not self.daemon_analyzer:
+            return []
+        
+        try:
+            return self.daemon_analyzer.get_patterns()
+        except Exception as e:
+            print(f"⚠️  Daemon analyzer error: {e}")
+            return []
+    
+    def _get_cos_patterns(self) -> List[Dict]:
+        """Get patterns from Chief of Staff intelligence (NEW)"""
+        if not self.cos_adapter or not self.cos_adapter.enabled:
+            return []
+        
+        try:
+            cos_data = self.cos_adapter.get_v8_compatible_patterns()
+            
+            # Flatten all patterns from all sources
+            all_patterns = []
+            for source in cos_data.get('sources', []):
+                for pattern in source.get('patterns', []):
+                    # Convert to V8 format
+                    all_patterns.append({
+                        'type': pattern['type'],
+                        'confidence': pattern['confidence'],
+                        'count': pattern.get('occurrence_count', 1),
+                        'description': pattern.get('suggestion', ''),
+                        'metadata': pattern,
+                        'source': source['source']
+                    })
+            
+            return all_patterns
+        except Exception as e:
+            print(f"⚠️  Chief of Staff adapter error: {e}")
+            return []

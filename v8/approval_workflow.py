@@ -31,7 +31,7 @@ class ApprovalWorkflow:
     
     def __init__(self, db_path: Path = None, enable_sandbox: bool = True):
         if db_path is None:
-            db_path = Path.home() / '.openclaw/workspace/integrations/intelligence/v8_meta_learning/approvals.db'
+            db_path = Path.home() / 'workspace/integrations/intelligence/v8_meta_learning/approvals.db'
         
         self.db_path = db_path
         self.enable_sandbox = enable_sandbox
