@@ -1,0 +1,45 @@
+2026-04-20 14:18:31,165 [INFO] Starting V8.5 Pattern Learning API on port 5006
+2026-04-20 14:18:31,165 [INFO] Database: /Users/tsmolty/.openclaw/workspace/integrations/intelligence/v8.5_pattern_learning/pattern_learning.db
+ * Serving Flask app 'pattern_learning_api'
+ * Debug mode: on
+2026-04-20 14:18:31,237 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5006
+ * Running on http://192.168.1.101:5006
+2026-04-20 14:18:31,237 [INFO] [33mPress CTRL+C to quit[0m
+2026-04-20 14:18:31,238 [INFO]  * Restarting with stat
+2026-04-20 14:18:31,486 [INFO] Starting V8.5 Pattern Learning API on port 5006
+2026-04-20 14:18:31,506 [INFO] Database: /Users/tsmolty/.openclaw/workspace/integrations/intelligence/v8.5_pattern_learning/pattern_learning.db
+2026-04-20 14:18:31,599 [WARNING]  * Debugger is active!
+2026-04-20 14:18:31,630 [INFO]  * Debugger PIN: 151-104-577
+/Users/tsmolty/.openclaw/workspace/integrations/intelligence/v8.5_pattern_learning/api/pattern_learning_api.py:237: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "created_at": datetime.utcnow().isoformat(),
+/Users/tsmolty/.openclaw/workspace/integrations/intelligence/v8.5_pattern_learning/api/pattern_learning_api.py:238: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "expires_at": (datetime.utcnow() + timedelta(hours=1)).isoformat()
+/Users/tsmolty/.openclaw/workspace/integrations/intelligence/v8.5_pattern_learning/api/pattern_learning_api.py:254: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "created_at": datetime.utcnow().isoformat(),
+/Users/tsmolty/.openclaw/workspace/integrations/intelligence/v8.5_pattern_learning/api/pattern_learning_api.py:255: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "expires_at": (datetime.utcnow() + timedelta(days=1)).isoformat()
+/Users/tsmolty/.openclaw/workspace/integrations/intelligence/v8.5_pattern_learning/api/pattern_learning_api.py:270: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "created_at": datetime.utcnow().isoformat()
+2026-04-20 14:18:34,065 [INFO] Generated 3 demo recommendations for user simon
+/Users/tsmolty/.openclaw/workspace/integrations/intelligence/v8.5_pattern_learning/api/pattern_learning_api.py:279: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  'generated_at': datetime.utcnow().isoformat()
+2026-04-20 14:18:34,066 [INFO] 127.0.0.1 - - [20/Apr/2026 14:18:34] "GET /api/v8.5/recommendations/personalized?user_id=simon&limit=3 HTTP/1.1" 200 -
+/Users/tsmolty/.openclaw/workspace/integrations/intelligence/v8.5_pattern_learning/api/pattern_learning_api.py:516: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  'timestamp': datetime.utcnow().isoformat()
+2026-04-20 14:18:34,083 [INFO] 127.0.0.1 - - [20/Apr/2026 14:18:34] "GET /api/v8.5/health HTTP/1.1" 200 -
+2026-04-20 14:49:02,991 [INFO]  * Detected change in '/usr/local/lib/python3.14/site-packages/requests/status_codes.py', reloading
+2026-04-20 14:49:03,048 [INFO]  * Restarting with stat
+2026-04-20 14:49:03,344 [INFO] Starting V8.5 Pattern Learning API on port 5006
+2026-04-20 14:49:03,344 [INFO] Database: /Users/tsmolty/.openclaw/workspace/integrations/intelligence/v8.5_pattern_learning/pattern_learning.db
+2026-04-20 14:49:03,412 [WARNING]  * Debugger is active!
+2026-04-20 14:49:03,437 [INFO]  * Debugger PIN: 151-104-577
+2026-04-20 14:49:04,760 [INFO]  * Detected change in '/usr/local/lib/python3.14/site-packages/flask/config.py', reloading
+2026-04-20 14:49:04,815 [INFO]  * Restarting with stat
+2026-04-20 14:49:05,064 [INFO] Starting V8.5 Pattern Learning API on port 5006
+2026-04-20 14:49:05,065 [INFO] Database: /Users/tsmolty/.openclaw/workspace/integrations/intelligence/v8.5_pattern_learning/pattern_learning.db
+2026-04-20 14:49:05,129 [WARNING]  * Debugger is active!
+2026-04-20 14:49:05,147 [INFO]  * Debugger PIN: 151-104-577
+/usr/local/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/resource_tracker.py:396: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown: {'/mp-8j9b9eg2'}
+  warnings.warn(
