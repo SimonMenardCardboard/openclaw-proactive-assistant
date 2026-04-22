@@ -10,11 +10,11 @@ set -e
 # Configuration (passed via cloud-init)
 SUBDOMAIN="${SUBDOMAIN:-user-example}"
 USER_ID="${USER_ID:-user_example}"
-ADMIN_EMAIL="${ADMIN_EMAIL:-admin@transmogrifier.app}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@getcardboardai.com}"
 
 echo "=========================================="
 echo "Transmogrifier VM Setup"
-echo "Subdomain: $SUBDOMAIN.transmogrifier.app"
+echo "Subdomain: $SUBDOMAIN.getcardboardai.com"
 echo "User ID: $USER_ID"
 echo "=========================================="
 
@@ -83,7 +83,7 @@ cd /opt/openclaw-workspace
 cat > README.md <<EOF
 # Transmogrifier OpenClaw Instance
 User: $USER_ID
-Subdomain: $SUBDOMAIN.transmogrifier.app
+Subdomain: $SUBDOMAIN.getcardboardai.com
 Provisioned: $(date)
 EOF
 
@@ -183,7 +183,7 @@ echo "[8/10] Configuring Nginx..."
 cat > /etc/nginx/sites-available/openclaw <<EOF
 server {
     listen 80;
-    server_name $SUBDOMAIN.transmogrifier.app;
+    server_name $SUBDOMAIN.getcardboardai.com;
 
     location / {
         proxy_pass http://localhost:28789;
@@ -208,7 +208,7 @@ systemctl reload nginx
 # 9. Get SSL certificate
 echo "[9/10] Obtaining SSL certificate..."
 certbot --nginx \
-    -d $SUBDOMAIN.transmogrifier.app \
+    -d $SUBDOMAIN.getcardboardai.com \
     --non-interactive \
     --agree-tos \
     --email $ADMIN_EMAIL \
@@ -221,7 +221,7 @@ cat > /opt/openclaw-workspace/.provisioned <<EOF
   "status": "ready",
   "user_id": "$USER_ID",
   "subdomain": "$SUBDOMAIN",
-  "vm_url": "https://$SUBDOMAIN.transmogrifier.app",
+  "vm_url": "https://$SUBDOMAIN.getcardboardai.com",
   "provisioned_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "openclaw_version": "$(openclaw --version 2>/dev/null || echo 'unknown')"
 }
@@ -229,7 +229,7 @@ EOF
 
 echo "=========================================="
 echo "✅ Transmogrifier VM Ready!"
-echo "URL: https://$SUBDOMAIN.transmogrifier.app"
+echo "URL: https://$SUBDOMAIN.getcardboardai.com"
 echo "Gateway Status: $(systemctl is-active openclaw-gateway)"
 echo "=========================================="
 
@@ -237,6 +237,6 @@ echo "=========================================="
 if [ -n "$CONTROL_PLANE_URL" ]; then
     curl -X POST "$CONTROL_PLANE_URL/api/vm/ready" \
         -H "Content-Type: application/json" \
-        -d "{\"user_id\": \"$USER_ID\", \"vm_url\": \"https://$SUBDOMAIN.transmogrifier.app\"}" \
+        -d "{\"user_id\": \"$USER_ID\", \"vm_url\": \"https://$SUBDOMAIN.getcardboardai.com\"}" \
         || true
 fi
