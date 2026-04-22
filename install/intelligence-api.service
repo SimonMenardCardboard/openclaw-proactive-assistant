@@ -1,0 +1,15 @@
+[Unit]
+Description=Transmogrifier Intelligence API
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/transmogrifier
+ExecStart=/usr/bin/python3 /opt/transmogrifier/intelligence_api.py
+Restart=always
+RestartSec=10
+Environment="INTELLIGENCE_API_PORT=8009"
+
+[Install]
+WantedBy=multi-user.target

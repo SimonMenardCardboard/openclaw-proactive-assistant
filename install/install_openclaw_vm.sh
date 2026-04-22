@@ -55,18 +55,24 @@ echo "[3.7/10] Installing Accounts API..."
 mkdir -p /opt/transmogrifier
 cd /tmp/openclaw-proactive-assistant/vm-services
 cp accounts_api.py /opt/transmogrifier/
+cp intelligence_api.py /opt/transmogrifier/
 cp accounts-api.service /etc/systemd/system/
 
-# Update service file with subdomain
+cd /tmp/openclaw-proactive-assistant/install
+cp intelligence-api.service /etc/systemd/system/
+
+# Update service files with subdomain
 sed -i "s/SUBDOMAIN/$SUBDOMAIN/g" /etc/systemd/system/accounts-api.service
 
-# Install Python dependencies for accounts API
+# Install Python dependencies for APIs
 pip3 install flask flask-cors requests
 
-# Start accounts API
+# Start both APIs
 systemctl daemon-reload
 systemctl enable accounts-api
 systemctl start accounts-api
+systemctl enable intelligence-api
+systemctl start intelligence-api
 
 # 4. Create openclaw user
 echo "[4/10] Creating openclaw user..."
