@@ -236,34 +236,23 @@ def get_email_summary():
     Requires Google/Microsoft OAuth to be configured
     """
     try:
-        # Check for OAuth tokens
-        token_files = [
-            os.path.expanduser('~/workspace/integrations/direct_api/token.json'),
-            os.path.expanduser('~/workspace/integrations/direct_api/token_simon_at_legalmensch_com.json')
-        ]
+        # Import email intelligence module
+        import sys
+        sys.path.insert(0, os.path.dirname(__file__))
+        from email_intelligence import get_email_intelligence
         
-        oauth_available = any(os.path.exists(f) for f in token_files)
+        result = get_email_intelligence()
         
-        if not oauth_available:
-            return jsonify({
-                'success': False,
-                'error': 'OAuth not configured',
-                'hint': 'Connect your email account in Settings'
-            }), 400
-        
-        # TODO: Implement actual email fetching via OAuth
-        # For now, return placeholder
+        if result.get('success'):
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+    except ImportError as e:
         return jsonify({
-            'success': True,
-            'email_summary': {
-                'unread_count': 0,
-                'important_emails': [],
-                'upcoming_deadlines': [],
-                'suggested_replies': [],
-                'oauth_status': 'connected',
-                'note': 'Email analysis coming soon'
-            }
-        })
+            'success': False,
+            'error': 'Email intelligence module not available',
+            'details': str(e)
+        }), 500
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -274,33 +263,23 @@ def get_calendar_next():
     Requires Google/Microsoft OAuth
     """
     try:
-        # Check for OAuth tokens
-        token_files = [
-            os.path.expanduser('~/workspace/integrations/direct_api/token.json'),
-            os.path.expanduser('~/workspace/integrations/direct_api/token_simon_at_legalmensch_com.json')
-        ]
+        # Import calendar intelligence module
+        import sys
+        sys.path.insert(0, os.path.dirname(__file__))
+        from calendar_intelligence import get_calendar_intelligence
         
-        oauth_available = any(os.path.exists(f) for f in token_files)
+        result = get_calendar_intelligence()
         
-        if not oauth_available:
-            return jsonify({
-                'success': False,
-                'error': 'OAuth not configured',
-                'hint': 'Connect your calendar in Settings'
-            }), 400
-        
-        # TODO: Implement actual calendar fetching
+        if result.get('success'):
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+    except ImportError as e:
         return jsonify({
-            'success': True,
-            'calendar': {
-                'next_24h': [],
-                'meeting_prep': [],
-                'conflicts': [],
-                'travel_time_needed': [],
-                'oauth_status': 'connected',
-                'note': 'Calendar intelligence coming soon'
-            }
-        })
+            'success': False,
+            'error': 'Calendar intelligence module not available',
+            'details': str(e)
+        }), 500
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -375,6 +354,45 @@ def get_health():
             },
             'timestamp': datetime.utcnow().isoformat()
         })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/intelligence/register-push-token', methods=['POST'])
+def register_push_token_endpoint():
+    """
+    Register push notification token for a device
+    
+    Body:
+    {
+        "device_id": "dev_xxx",
+        "platform": "ios" | "android",
+        "push_token": "token_string"
+    }
+    """
+    try:
+        data = request.json
+        
+        device_id = data.get('device_id')
+        platform = data.get('platform')
+        push_token = data.get('push_token')
+        
+        if not all([device_id, platform, push_token]):
+            return jsonify({'error': 'device_id, platform, and push_token required'}), 400
+        
+        # Import push notifications module
+        import sys
+        sys.path.insert(0, os.path.dirname(__file__))
+        from push_notifications import register_push_token
+        
+        success = register_push_token(device_id, platform, push_token)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Push token registered'
+            })
+        else:
+            return jsonify({'error': 'Failed to register push token'}), 500
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
