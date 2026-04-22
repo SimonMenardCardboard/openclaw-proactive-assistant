@@ -1,0 +1,24 @@
+[Unit]
+Description=Transmogrifier Accounts API
+After=network.target openclaw-gateway.service
+Requires=openclaw-gateway.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/transmogrifier
+ExecStart=/usr/bin/python3 /opt/transmogrifier/accounts_api.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/transmogrifier/accounts-api.log
+StandardError=append:/var/log/transmogrifier/accounts-api.log
+
+# Environment variables (will be set during provisioning)
+Environment="PUBLIC_URL=https://SUBDOMAIN.transmogrifier.app"
+Environment="GOOGLE_CLIENT_ID="
+Environment="GOOGLE_CLIENT_SECRET="
+Environment="MICROSOFT_CLIENT_ID="
+Environment="MICROSOFT_CLIENT_SECRET="
+
+[Install]
+WantedBy=multi-user.target
