@@ -62,8 +62,12 @@ class ProactiveQueue:
                 LIMIT ?
             """, (limit,))
             
+            # Fetch all rows immediately and close cursor
+            rows = cursor.fetchall()
+            cursor.close()
+            
             results = []
-            for row in cursor.fetchall():
+            for row in rows:
                 results.append({
                     'id': row['id'],
                     'source': row['source'],
@@ -86,13 +90,15 @@ class ProactiveQueue:
     def stats(self) -> Dict:
         """Get queue statistics."""
         with sqlite3.connect(self.db_path) as conn:
-            result = conn.execute("""
+            cursor = conn.execute("""
                 SELECT 
                     COUNT(*) as total,
                     SUM(CASE WHEN delivered = 0 THEN 1 ELSE 0 END) as pending,
                     SUM(CASE WHEN delivered = 1 THEN 1 ELSE 0 END) as delivered
                 FROM proactive_queue
-            """).fetchone()
+            """)
+            result = cursor.fetchone()
+            cursor.close()
             
             return {
                 'total': result[0],
