@@ -76,26 +76,163 @@ I'll notify you as soon as I find something! 🐯"""
     
     async def pull_historical_data(self) -> Dict:
         """Pull last 30 days of email + calendar data."""
-        # TODO: Implement via COS oauth_manager
-        # For now, return mock data structure
+        # Use real OAuth tokens to pull actual data
+        from pathlib import Path
+        
+        config_dir = Path.home() / '.openclaw/workspace/integrations/intelligence/config'
+        token_file = config_dir / f'{self.user_id}_google_personal.json'
+        
+        # Try to load real Gmail data
+        email_data = await self._pull_gmail_data(token_file)
+        
+        # Try to load real Calendar data  
+        calendar_data = await self._pull_calendar_data(token_file)
         
         return {
-            'emails': {
-                'count': 450,
-                'date_range': {'start': '2026-03-28', 'end': '2026-04-28'},
-                'by_sender': {},  # top senders
-                'by_hour': {},  # email volume by hour
-                'response_times': [],  # hours to respond
-                'unread_count': 73
-            },
-            'calendar': {
-                'meetings': 120,
-                'date_range': {'start': '2026-03-28', 'end': '2026-04-28'},
-                'by_day': {},  # meetings per day
-                'focus_blocks': [],  # unscheduled time blocks
-                'recurring': [],  # recurring meetings
-                'after_hours': 12  # meetings after 6 PM
+            'emails': email_data,
+            'calendar': calendar_data
+        }
+    
+    async def _pull_gmail_data(self, token_file: Path) -> Dict:
+        """Pull real Gmail data from last 30 days."""
+        if not token_file.exists():
+            logger.warning(f"No OAuth token found: {token_file}")
+            return self._get_mock_email_data()
+        
+        try:
+            from google.oauth2.credentials import Credentials
+            from googleapiclient.discovery import build
+            from datetime import datetime, timedelta
+            import json
+            
+            # Load OAuth credentials
+            with open(token_file) as f:
+                token_data = json.load(f)
+            
+            creds = Credentials(
+                token=token_data['token'],
+                refresh_token=token_data.get('refresh_token'),
+                token_uri=token_data['token_uri'],
+                client_id=token_data['client_id'],
+                client_secret=token_data['client_secret'],
+                scopes=token_data.get('scopes', [])
+            )
+            
+            # Build Gmail API service
+            service = build('gmail', 'v1', credentials=creds)
+            
+            # Get messages from last 30 days
+            thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime('%Y/%m/%d')
+            query = f'after:{thirty_days_ago}'
+            
+            results = service.users().messages().list(userId='me', q=query, maxResults=500).execute()
+            messages = results.get('messages', [])
+            
+            # Get profile for email address
+            profile = service.users().getProfile(userId='me').execute()
+            email_address = profile.get('emailAddress')
+            
+            # Get unread count
+            unread_results = service.users().messages().list(userId='me', q='is:unread').execute()
+            unread_count = unread_results.get('resultSizeEstimate', 0)
+            
+            logger.info(f"✅ Pulled {len(messages)} emails from {email_address}")
+            
+            return {
+                'count': len(messages),
+                'date_range': {'start': thirty_days_ago, 'end': datetime.now().strftime('%Y/%m/%d')},
+                'by_sender': {},  # TODO: Parse message headers
+                'by_hour': {},
+                'response_times': [],
+                'unread_count': unread_count,
+                'email_address': email_address,
+                'oauth_available': True
             }
+            
+        except Exception as e:
+            logger.error(f"Failed to pull Gmail data: {e}")
+            return self._get_mock_email_data()
+    
+    async def _pull_calendar_data(self, token_file: Path) -> Dict:
+        """Pull real Google Calendar data from last 30 days."""
+        if not token_file.exists():
+            logger.warning(f"No OAuth token found: {token_file}")
+            return self._get_mock_calendar_data()
+        
+        try:
+            from google.oauth2.credentials import Credentials
+            from googleapiclient.discovery import build
+            from datetime import datetime, timedelta
+            import json
+            
+            # Load OAuth credentials
+            with open(token_file) as f:
+                token_data = json.load(f)
+            
+            creds = Credentials(
+                token=token_data['token'],
+                refresh_token=token_data.get('refresh_token'),
+                token_uri=token_data['token_uri'],
+                client_id=token_data['client_id'],
+                client_secret=token_data['client_secret'],
+                scopes=token_data.get('scopes', [])
+            )
+            
+            # Build Calendar API service
+            service = build('calendar', 'v3', credentials=creds)
+            
+            # Get events from last 30 days
+            thirty_days_ago = (datetime.now() - timedelta(days=30)).isoformat() + 'Z'
+            now = datetime.now().isoformat() + 'Z'
+            
+            events_result = service.events().list(
+                calendarId='primary',
+                timeMin=thirty_days_ago,
+                timeMax=now,
+                singleEvents=True,
+                orderBy='startTime'
+            ).execute()
+            
+            events = events_result.get('items', [])
+            
+            logger.info(f"✅ Pulled {len(events)} calendar events")
+            
+            return {
+                'meetings': len(events),
+                'date_range': {'start': thirty_days_ago[:10], 'end': now[:10]},
+                'by_day': {},  # TODO: Calculate meetings per day
+                'focus_blocks': [],
+                'recurring': [],
+                'after_hours': 0,  # TODO: Count after 6 PM
+                'oauth_available': True
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to pull Calendar data: {e}")
+            return self._get_mock_calendar_data()
+    
+    def _get_mock_email_data(self) -> Dict:
+        """Fallback mock email data."""
+        return {
+            'count': 450,
+            'date_range': {'start': '2026-03-28', 'end': '2026-04-28'},
+            'by_sender': {},
+            'by_hour': {},
+            'response_times': [],
+            'unread_count': 73,
+            'oauth_available': False
+        }
+    
+    def _get_mock_calendar_data(self) -> Dict:
+        """Fallback mock calendar data."""
+        return {
+            'meetings': 120,
+            'date_range': {'start': '2026-03-28', 'end': '2026-04-28'},
+            'by_day': {},
+            'focus_blocks': [],
+            'recurring': [],
+            'after_hours': 12,
+            'oauth_available': False
         }
     
     async def analyze_patterns(self, data: Dict) -> Dict:
