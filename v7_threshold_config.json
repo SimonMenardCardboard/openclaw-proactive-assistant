@@ -1,0 +1,51 @@
+{
+  "comment": "V7 Self-Healing Detection Thresholds - Lowered for faster detection",
+  "version": "2.0",
+  "updated": "2026-04-29",
+  
+  "oauth_monitor": {
+    "expiry_warning_hours": 48,
+    "expiry_critical_hours": 24,
+    "check_interval_seconds": 300,
+    "auto_refresh": true
+  },
+  
+  "log_freshness": {
+    "warning_threshold_hours": 24,
+    "critical_threshold_hours": 48,
+    "monitored_logs": [
+      "~/.openclaw/workspace/logs/proactive_daemon_v2.log",
+      "~/.openclaw/workspace/logs/autonomous_executor.log",
+      "~/.openclaw/workspace/logs/self_healing.log"
+    ]
+  },
+  
+  "file_descriptors": {
+    "warning_threshold": 100,
+    "critical_threshold": 500,
+    "monitored_processes": [
+      "proactive_telegram_notifier",
+      "autonomous_executor",
+      "v7_self_healing_daemon"
+    ]
+  },
+  
+  "process_health": {
+    "responsiveness_timeout_seconds": 10,
+    "log_silence_hours": 1,
+    "auto_restart_frozen": true
+  },
+  
+  "auto_repair_whitelist": [
+    "refresh_oauth_token",
+    "restart_daemon",
+    "restart_telegram_notifier",
+    "rotate_log_file"
+  ],
+  
+  "approval_required": [
+    "restart_database",
+    "delete_cache",
+    "modify_config"
+  ]
+}
