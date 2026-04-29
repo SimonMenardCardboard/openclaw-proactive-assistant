@@ -2,6 +2,7 @@
 """
 V8 Pattern Learning - Proactive Recommendations
 Analyzes user behavior and spontaneously suggests optimizations
+V8.5: Includes federated learning via Hobbes Control
 """
 
 import sys
@@ -12,6 +13,15 @@ from typing import List, Dict, Optional
 
 sys.path.insert(0, str(Path(__file__).parent))
 from proactive_queue import ProactiveQueue
+
+# V8.5 Federated Learning
+sys.path.insert(0, str(Path(__file__).parent / "v8.5_pattern_learning"))
+try:
+    from hobbes_control_client import HobbesControlClient
+    HOBBES_CONTROL_AVAILABLE = True
+except ImportError:
+    HOBBES_CONTROL_AVAILABLE = False
+    logging.warning("Hobbes Control client not available")
 
 # V8.5 pattern learning
 sys.path.insert(0, str(Path(__file__).parent / "v8.5_pattern_learning/pattern_learning"))
@@ -39,6 +49,12 @@ class ProactivePatternRecommendations:
         else:
             self.analyzer = None
         
+        # V8.5: Hobbes Control client for federated learning
+        if HOBBES_CONTROL_AVAILABLE:
+            self.control_client = HobbesControlClient(user_id=user_id)
+        else:
+            self.control_client = None
+        
         # Track what we've already recommended
         self.recommended = set()
     
@@ -54,10 +70,15 @@ class ProactivePatternRecommendations:
             calendar_patterns = self._get_calendar_patterns()
             work_patterns = self._get_work_patterns()
             
-            # Generate recommendations
+            # Generate local recommendations
             self._recommend_email_optimizations(email_patterns)
             self._recommend_calendar_optimizations(calendar_patterns)
             self._recommend_productivity_improvements(work_patterns)
+            
+            # V8.5: Get federated insights from Hobbes Control
+            if self.control_client:
+                self._check_federated_insights()
+                self._submit_anonymized_patterns(email_patterns, calendar_patterns, work_patterns)
             
             logger.info("Pattern-based recommendations checked")
             
@@ -211,3 +232,87 @@ if __name__ == '__main__':
     
     stats = recommender.queue.stats()
     print(f"\n📊 Queue: {stats['pending']} pending, {stats['delivered']} delivered")
+
+    # V8.5: Federated Learning Methods
+    
+    def _check_federated_insights(self):
+        """Get and queue cross-user insights from Hobbes Control."""
+        try:
+            insights = self.control_client.get_federated_insights()
+            
+            for insight in insights:
+                insight_type = insight.get('type')
+                if insight_type in self.recommended:
+                    continue  # Already recommended
+                
+                message = self._format_federated_insight(insight)
+                if message:
+                    self.queue.add(
+                        source='v8.5-federated',
+                        message=message,
+                        priority=3,
+                        context={'insight_type': insight_type, 'federated': True}
+                    )
+                    self.recommended.add(insight_type)
+                    logger.info(f"Queued federated insight: {insight_type}")
+        
+        except Exception as e:
+            logger.warning(f"Failed to get federated insights: {e}")
+    
+    def _format_federated_insight(self, insight: Dict) -> str:
+        """Format federated insight as user-friendly message."""
+        insight_type = insight.get('type')
+        data = insight.get('data', {})
+        
+        if insight_type == 'email_response_time':
+            avg_network = data.get('network_avg_hours', 0)
+            user_avg = data.get('user_avg_hours', 0)
+            
+            if user_avg > avg_network * 1.5:
+                return f"💡 *Cross-user insight*\n\nUsers with similar roles respond to emails in {avg_network:.1f} hours on average.\nYou're taking {user_avg:.1f} hours.\n\nWant to adjust notification priority to help you respond faster?"
+        
+        elif insight_type == 'focus_time_blocking':
+            pct = data.get('users_with_focus_blocks', 0)
+            hours = data.get('common_hours', '')
+            
+            if pct > 60:
+                return f"💡 *Productivity insight*\n\n{pct}% of productive users block {hours} for deep work.\n\nWant me to protect this time in your calendar?"
+        
+        elif insight_type == 'meeting_delegation':
+            pct = data.get('users_delegating', 0)
+            
+            if pct > 50:
+                return f"💡 *Workflow insight*\n\n{pct}% of users with your meeting load delegate status updates to async.\n\nWant tips on effective delegation?"
+        
+        return None
+    
+    def _submit_anonymized_patterns(self, email_patterns: Dict, calendar_patterns: Dict, work_patterns: Dict):
+        """Submit anonymized patterns to Hobbes Control for network learning."""
+        try:
+            patterns = []
+            
+            # Anonymize and submit email patterns
+            if email_patterns and email_patterns.get('confidence_score', 0) > 0.6:
+                patterns.append({
+                    'type': 'email_response_time',
+                    'avg_hours': email_patterns.get('avg_response_time_hours', 0),
+                    'confidence': email_patterns.get('confidence_score', 0)
+                })
+            
+            # Anonymize and submit calendar patterns
+            if calendar_patterns and calendar_patterns.get('confidence_score', 0) > 0.6:
+                focus_hours = calendar_patterns.get('deep_work_hours', [])
+                if focus_hours:
+                    patterns.append({
+                        'type': 'focus_time_blocking',
+                        'hours': ','.join(focus_hours),
+                        'confidence': calendar_patterns.get('confidence_score', 0)
+                    })
+            
+            # Submit patterns (no PII, fully anonymized)
+            if patterns:
+                self.control_client.submit_patterns(patterns)
+                logger.info(f"Submitted {len(patterns)} anonymized patterns")
+        
+        except Exception as e:
+            logger.warning(f"Failed to submit patterns: {e}")
