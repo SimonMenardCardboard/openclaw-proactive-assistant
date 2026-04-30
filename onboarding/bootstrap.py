@@ -27,6 +27,21 @@ class BootstrapOnboarding:
     def __init__(self, user_id: str):
         self.user_id = user_id
         self.queue = ProactiveQueue()
+        self._setup_workspace()
+    
+    def _setup_workspace(self):
+        """Setup user workspace files (SOUL.md, etc.)."""
+        workspace = Path.home() / '.openclaw/workspace'
+        workspace.mkdir(parents=True, exist_ok=True)
+        
+        # Copy SOUL_TEMPLATE.md to user's workspace as SOUL.md
+        soul_template = Path(__file__).parent.parent / 'SOUL_TEMPLATE.md'
+        soul_dest = workspace / 'SOUL.md'
+        
+        if soul_template.exists() and not soul_dest.exists():
+            import shutil
+            shutil.copy(soul_template, soul_dest)
+            logger.info(f"✅ Copied SOUL.md to user workspace")
     
     async def trigger(self):
         """Main bootstrap orchestration."""
