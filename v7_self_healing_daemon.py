@@ -272,15 +272,19 @@ class SelfHealingDaemon:
                     text += f"**Time:** {now.strftime('%I:%M %p')}\n\n"
                     text += f"V7 will attempt auto-repair..."
                     
-                    import requests
-                    token = self.notifier.token
+                    import subprocess
                     chat_id = self.notifier.chat_id
-                    if token:
-                        requests.post(
-                            f"https://api.telegram.org/bot{token}/sendMessage",
-                            json={"chat_id": chat_id, "text": text, "parse_mode": "Markdown"},
-                            timeout=5
-                        )
+                    if chat_id:
+                        # Route through OpenClaw Gateway to maintain message ordering
+                        try:
+                            subprocess.run(
+                                ['/usr/local/bin/openclaw', 'message', 'send',
+                                 '--target', chat_id, '--message', text],
+                                capture_output=True,
+                                timeout=10
+                            )
+                        except Exception:
+                            pass  # Silently fail on critical alerts
                 except Exception as e:
                     print(f"  Failed to send critical alert: {e}", flush=True)
         

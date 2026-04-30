@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-Proactive Telegram Notifier - Production version using direct Telegram Bot API
-Polls proactive_queue and delivers autonomously
+Proactive Telegram Notifier - Production version via OpenClaw Gateway
+Polls proactive_queue and delivers autonomously via openclaw message send
 """
 
 import sys
 import time
-import requests
-import json
+import subprocess
 import logging
 from pathlib import Path
 from datetime import datetime
@@ -31,34 +30,36 @@ logger = logging.getLogger(__name__)
 
 
 class TelegramNotifier:
-    """Delivers proactive recommendations via Telegram Bot API."""
+    """Delivers proactive recommendations via OpenClaw Gateway."""
     
-    def __init__(self, bot_token: str, chat_id: str, interval: int = 30):
-        self.bot_token = bot_token
+    def __init__(self, chat_id: str, interval: int = 30):
         self.chat_id = chat_id
         self.interval = interval
         self.queue = ProactiveQueue()
-        self.api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         
         logger.info(f"✅ Telegram notifier started (chat_id: {chat_id}, interval: {interval}s)")
+        logger.info(f"📡 Routing through OpenClaw Gateway (no direct Telegram API)")
     
     def send_message(self, message: str) -> bool:
-        """Send message via Telegram Bot API."""
+        """Send message via OpenClaw Gateway to maintain proper message ordering."""
         try:
-            payload = {
-                'chat_id': self.chat_id,
-                'text': message,
-                'parse_mode': 'Markdown',
-                'disable_web_page_preview': True
-            }
+            # Use openclaw message send instead of direct Telegram API
+            cmd = ['/usr/local/bin/openclaw', 'message', 'send']
+            cmd.extend(['--target', self.chat_id])
+            cmd.extend(['--message', message])
             
-            response = requests.post(self.api_url, json=payload, timeout=10)
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
             
-            if response.status_code == 200 and response.json().get('ok'):
-                logger.info(f"✅ Message delivered: {message[:50]}...")
+            if result.returncode == 0:
+                logger.info(f"✅ Message delivered via Gateway: {message[:50]}...")
                 return True
             else:
-                logger.error(f"❌ Telegram API error: {response.text}")
+                logger.error(f"❌ Gateway send failed: {result.stderr}")
                 return False
                 
         except Exception as e:
@@ -99,23 +100,22 @@ class TelegramNotifier:
             except KeyboardInterrupt:
                 logger.info("🛑 Shutting down...")
                 break
+            
             except Exception as e:
-                logger.error(f"❌ Error in main loop: {e}", exc_info=True)
-                time.sleep(self.interval)
+                logger.error(f"❌ Error in main loop: {e}")
+                time.sleep(10)  # Back off on errors
 
 
 if __name__ == '__main__':
     import argparse
     
-    parser = argparse.ArgumentParser(description='Proactive Telegram notifier')
-    parser.add_argument('--bot-token', required=True, help='Telegram bot token')
+    parser = argparse.ArgumentParser(description='Proactive Telegram Notifier (via OpenClaw Gateway)')
     parser.add_argument('--chat-id', required=True, help='Telegram chat ID')
-    parser.add_argument('--interval', type=int, default=30, help='Poll interval (seconds)')
+    parser.add_argument('--interval', type=int, default=30, help='Poll interval in seconds')
     
     args = parser.parse_args()
     
     notifier = TelegramNotifier(
-        bot_token=args.bot_token,
         chat_id=args.chat_id,
         interval=args.interval
     )
