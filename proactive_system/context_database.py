@@ -414,9 +414,11 @@ if __name__ == '__main__':
     print("Context Database - Schema Test")
     print("="*60 + "\n")
     
-    # Initialize
-    db = ContextDatabase()
-    print("✅ Database initialized\n")
+    # Initialize with TEST database (not production)
+    import tempfile
+    test_db = Path(tempfile.gettempdir()) / 'context_test.db'
+    db = ContextDatabase(db_path=test_db)
+    print(f"✅ Test database initialized: {test_db}\n")
     
     # Test: Add contact
     print("[1/4] Testing contact upsert...")
