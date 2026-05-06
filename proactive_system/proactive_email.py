@@ -45,13 +45,21 @@ class ProactiveEmail:
         self.user_id = user_id
         self.queue = ProactiveQueue()
         
-        # Use multi-provider email connector
+        # Use universal email API (backward compatible)
         try:
-            from multi_provider_email import MultiProviderEmailConnector
-            self.connector = MultiProviderEmailConnector(user_id=user_id)
+            from universal_email_api import UniversalAccountManager
+            self.connector = UniversalAccountManager()
         except Exception as e:
-            logger.warning(f"Multi-provider email init failed: {e}")
+            logger.warning(f"Email connector init failed: {e}")
             self.connector = None
+        
+        # Load context database for contact importance
+        try:
+            from context_database import ContextDatabase
+            self.context_db = ContextDatabase()
+        except Exception as e:
+            logger.warning(f"Context DB init failed: {e}")
+            self.context_db = None
         
         # Track notified messages
         self.notified_messages = set()
@@ -130,6 +138,36 @@ class ProactiveEmail:
         if len(message.get('to', [])) > 2:
             score += 1
             reasons.append("Multiple recipients")
+        
+        # Check contact importance from context DB (NEW)
+        if self.context_db:
+            try:
+                # Extract email from sender
+                import re
+                email_match = re.search(r'<(.+?)>', sender)
+                sender_email = email_match.group(1).lower() if email_match else sender.strip().lower()
+                
+                contact = self.context_db.get_contact(sender_email)
+                if contact:
+                    importance_score = contact.get('importance_score', 0)
+                    
+                    # High importance contact (score > 40)
+                    if importance_score > 40:
+                        score += 3
+                        reasons.append(f"VIP contact (importance: {importance_score:.1f})")
+                    # Medium importance contact (score 20-40)
+                    elif importance_score > 20:
+                        score += 2
+                        reasons.append(f"Important contact (importance: {importance_score:.1f})")
+                    
+                    # Check if response is overdue
+                    avg_response = contact.get('avg_response_hours')
+                    if avg_response and avg_response < 12:
+                        # You usually respond quickly to this person
+                        score += 1
+                        reasons.append(f"You usually reply in {avg_response:.1f}h")
+            except Exception as e:
+                logger.debug(f"Error checking contact importance: {e}")
         
         return {
             'score': min(score, 10),

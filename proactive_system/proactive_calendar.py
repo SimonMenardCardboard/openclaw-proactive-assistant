@@ -34,13 +34,21 @@ class ProactiveCalendar:
         self.user_id = user_id
         self.queue = ProactiveQueue()
         
-        # Use multi-provider calendar connector
+        # Use universal calendar API (backward compatible)
         try:
-            from multi_provider_calendar import MultiProviderCalendarConnector
-            self.calendar = MultiProviderCalendarConnector(user_id=user_id)
+            from universal_calendar_api import UniversalCalendarManager
+            self.calendar = UniversalCalendarManager()
         except Exception as e:
-            logger.warning(f"Multi-provider calendar init failed: {e}")
+            logger.warning(f"Calendar connector init failed: {e}")
             self.calendar = None
+        
+        # Load context database for contact intelligence
+        try:
+            from context_database import ContextDatabase
+            self.context_db = ContextDatabase()
+        except Exception as e:
+            logger.warning(f"Context DB init failed: {e}")
+            self.context_db = None
         
         # Track what we've already notified about
         self.notified_events = set()
@@ -83,8 +91,55 @@ class ProactiveCalendar:
             
             logger.info(f"Checked {len(events)} events, notified for {len(self.notified_events)} new ones")
             
+            # Check for conflicts (NEW)
+            self._check_conflicts()
+            
         except Exception as e:
             logger.error(f"Error checking calendar: {e}", exc_info=True)
+    
+    def _check_conflicts(self):
+        """Check for calendar conflicts and notify (NEW - integrated from universal API)."""
+        if not self.calendar:
+            return
+        
+        try:
+            # Get all events across accounts
+            all_events_dict = self.calendar.get_all_events_across_accounts(max_per_account=100)
+            
+            # Check conflicts per account
+            for email, events in all_events_dict.items():
+                if not events:
+                    continue
+                
+                api = self.calendar.get_account(email)
+                if not api:
+                    continue
+                
+                conflicts = api.detect_conflicts(events)
+                
+                for conflict in conflicts:
+                    conflict_id = f"{conflict['event_1']}_{conflict['event_2']}"
+                    
+                    if conflict_id in self.notified_events:
+                        continue
+                    
+                    # Queue conflict notification
+                    self.queue.add_recommendation(
+                        f"⚠️ **Calendar Conflict Detected**\n\n"
+                        f"• {conflict['event_1']}\n"
+                        f"  {conflict['time_1']}\n\n"
+                        f"• {conflict['event_2']}\n"
+                        f"  {conflict['time_2']}\n\n"
+                        f"You're double-booked on {email.split('@')[0]}.",
+                        priority=1,  # High priority
+                        context={'conflict': conflict, 'account': email}
+                    )
+                    
+                    self.notified_events.add(conflict_id)
+                    logger.info(f"Queued conflict notification for {email}")
+        
+        except Exception as e:
+            logger.debug(f"Error checking conflicts: {e}")
     
     def _queue_meeting_prep(self, event: Dict, hours_until: float):
         """Queue 2-hour meeting prep notification."""
@@ -100,6 +155,32 @@ class ProactiveCalendar:
         attendees = event.get('attendees', [])
         if attendees:
             message += f"👥 {len(attendees)} attendee{'s' if len(attendees) > 1 else ''}\n"
+            
+            # Add contact intelligence from context DB (NEW)
+            if self.context_db and len(attendees) <= 5:
+                message += "\n**Attendees:**\n"
+                for attendee_email in attendees[:5]:
+                    try:
+                        contact = self.context_db.get_contact(attendee_email)
+                        if contact:
+                            name = contact.get('name', attendee_email)
+                            total_emails = contact.get('total_emails', 0)
+                            meetings = contact.get('meeting_count', 0)
+                            
+                            if total_emails > 10 or meetings > 5:
+                                message += f"• {name}"
+                                if total_emails > 20:
+                                    message += f" ({total_emails} emails)"
+                                if meetings > 10:
+                                    message += f" (frequent collaborator)"
+                                message += "\n"
+                            else:
+                                message += f"• {name}\n"
+                        else:
+                            # New contact - first meeting
+                            message += f"• {attendee_email.split('@')[0]} (new contact)\n"
+                    except Exception as e:
+                        logger.debug(f"Error loading contact intel: {e}")
         
         # Check if prep materials needed
         description = event.get('description', '').lower()

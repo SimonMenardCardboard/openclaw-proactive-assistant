@@ -355,6 +355,45 @@ class UniversalCalendarManager:
         
         return all_events
     
+    def get_all_events(self, days_ahead: int = 2) -> List[Dict]:
+        """
+        Get events from ALL accounts (backward compatibility method).
+        
+        Args:
+            days_ahead: Days to look ahead
+        
+        Returns:
+            Combined list of events from all accounts
+        """
+        all_events_dict = self.get_all_events_across_accounts(max_per_account=100)
+        
+        # Flatten to single list
+        all_events = []
+        for events in all_events_dict.values():
+            all_events.extend(events)
+        
+        # Filter to days_ahead window
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        cutoff = now + timedelta(days=days_ahead)
+        
+        filtered = []
+        for event in all_events:
+            start_str = event.get('start', '')
+            try:
+                if 'T' in start_str:
+                    start_time = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                else:
+                    start_time = datetime.fromisoformat(start_str)
+                
+                if now <= start_time <= cutoff:
+                    filtered.append(event)
+            except:
+                # If can't parse, include it
+                filtered.append(event)
+        
+        return filtered
+    
     def get_combined_meeting_frequency(self, top_n: int = 30) -> List[Dict]:
         """
         Get meeting frequency across ALL accounts.
@@ -400,6 +439,10 @@ class UniversalCalendarManager:
         )
         
         return sorted_contacts[:top_n]
+
+
+# Backward compatibility alias for existing code
+MultiProviderCalendarConnector = UniversalCalendarManager
 
 
 if __name__ == '__main__':

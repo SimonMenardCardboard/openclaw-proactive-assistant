@@ -385,6 +385,30 @@ class UniversalAccountManager:
         
         return all_messages
     
+    def get_all_unread_messages(self, hours_back: int = 1) -> List[Dict]:
+        """
+        Get unread messages from ALL accounts (backward compatibility method).
+        
+        Args:
+            hours_back: Hours to look back
+        
+        Returns:
+            Combined list of unread messages from all accounts
+        """
+        all_unread = []
+        
+        for account_id, account in self.accounts.items():
+            email = account['email']
+            api = account['api']
+            
+            try:
+                unread = api.get_unread_messages(hours_back=hours_back, max_results=50)
+                all_unread.extend(unread)
+            except Exception as e:
+                logger.error(f"[Account Manager] Failed to fetch unread from {email}: {e}")
+        
+        return all_unread
+    
     def get_combined_important_contacts(self, top_n: int = 30) -> List[Dict]:
         """
         Get important contacts across ALL accounts.
@@ -429,6 +453,10 @@ class UniversalAccountManager:
         )
         
         return sorted_contacts[:top_n]
+
+
+# Backward compatibility alias for existing code
+MultiProviderEmailConnector = UniversalAccountManager
 
 
 if __name__ == '__main__':
