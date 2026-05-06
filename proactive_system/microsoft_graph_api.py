@@ -297,7 +297,7 @@ class MicrosoftGraphAPI:
             
             events = response.json().get('value', [])
             
-            parsed = [self._parse_event(evt) for evt in events]
+            parsed = [self._parse_calendar_event(evt) for evt in events]
             
             logger.info(f"[Microsoft Graph] {self.email}: {len(parsed)} calendar events")
             return parsed
@@ -306,25 +306,179 @@ class MicrosoftGraphAPI:
             logger.error(f"[Microsoft Graph] Error fetching calendar: {e}")
             return []
     
-    def _parse_event(self, evt: Dict) -> Dict:
+    def get_all_events_30_days(self, calendar_id: str = 'primary', max_results: int = 500) -> List[Dict]:
+        """Get ALL events from last 30 days (past + future)."""
+        if not self.access_token:
+            logger.error("[Microsoft Graph] Not authenticated")
+            return []
+        
+        try:
+            # 30 days ago to 30 days future
+            start_time = (datetime.now() - timedelta(days=30)).isoformat() + 'Z'
+            end_time = (datetime.now() + timedelta(days=30)).isoformat() + 'Z'
+            
+            logger.info(f"[Microsoft Graph] Fetching calendar events (60-day window)...")
+            
+            all_events = []
+            url = f"{self.GRAPH_API_ENDPOINT}/me/calendarView"
+            
+            while len(all_events) < max_results:
+                params = {
+                    'startDateTime': start_time,
+                    'endDateTime': end_time,
+                    '$orderby': 'start/dateTime',
+                    '$top': min(100, max_results - len(all_events))
+                }
+                
+                response = requests.get(url, headers=self._get_headers(), params=params)
+                response.raise_for_status()
+                
+                data = response.json()
+                events = data.get('value', [])
+                
+                if not events:
+                    break
+                
+                for evt in events:
+                    all_events.append(self._parse_calendar_event(evt))
+                
+                # Check for next page
+                next_link = data.get('@odata.nextLink')
+                if not next_link:
+                    break
+                
+                url = next_link
+            
+            logger.info(f"[Microsoft Graph] Fetched {len(all_events)} calendar events")
+            return all_events
+            
+        except Exception as e:
+            logger.error(f"[Microsoft Graph] Error fetching 30-day calendar events: {e}")
+            return []
+    
+    def _parse_calendar_event(self, evt: Dict) -> Dict:
         """Parse Outlook event to standard format."""
         return {
             'id': evt.get('id'),
-            'summary': evt.get('subject', ''),
+            'calendar_id': 'primary',  # Microsoft doesn't expose calendar ID easily
+            'summary': evt.get('subject', '(No title)'),
             'description': evt.get('bodyPreview', ''),
-            'start': {
-                'dateTime': evt.get('start', {}).get('dateTime'),
-                'timeZone': evt.get('start', {}).get('timeZone')
-            },
-            'end': {
-                'dateTime': evt.get('end', {}).get('dateTime'),
-                'timeZone': evt.get('end', {}).get('timeZone')
-            },
+            'start': evt.get('start', {}).get('dateTime', ''),
+            'end': evt.get('end', {}).get('dateTime', ''),
             'location': evt.get('location', {}).get('displayName', ''),
             'attendees': [a.get('emailAddress', {}).get('address') for a in evt.get('attendees', [])],
+            'recurring_event_id': evt.get('seriesMasterId'),  # Microsoft's recurring ID
+            'organizer': evt.get('organizer', {}).get('emailAddress', {}).get('address', ''),
+            'created': evt.get('createdDateTime'),
+            'updated': evt.get('lastModifiedDateTime'),
+            'status': 'confirmed',  # Microsoft doesn't have same status concept
             '_provider': 'microsoft',
             '_email': self.email
         }
+    
+    def detect_recurring_patterns(self, events: List[Dict]) -> Dict[str, List[Dict]]:
+        """Detect recurring meeting patterns."""
+        recurring_groups = defaultdict(list)
+        
+        for event in events:
+            recurring_id = event.get('recurring_event_id')
+            if recurring_id:
+                recurring_groups[recurring_id].append(event)
+        
+        patterns = {}
+        for recurring_id, occurrences in recurring_groups.items():
+            if len(occurrences) < 2:
+                continue
+            
+            first = occurrences[0]
+            patterns[recurring_id] = {
+                'summary': first['summary'],
+                'occurrence_count': len(occurrences),
+                'first_occurrence': first['start'],
+                'last_occurrence': occurrences[-1]['start'],
+                'attendees': first['attendees'],
+                'organizer': first['organizer']
+            }
+        
+        return patterns
+    
+    def analyze_meeting_frequency(self, events: List[Dict]) -> Dict[str, int]:
+        """Count meetings per contact."""
+        contact_meetings = defaultdict(int)
+        
+        for event in events:
+            attendees = event.get('attendees', [])
+            for attendee in attendees:
+                if attendee != self.email:
+                    contact_meetings[attendee] += 1
+        
+        return dict(contact_meetings)
+    
+    def find_focus_time_gaps(self, events: List[Dict], min_gap_hours: float = 2.0) -> List[Dict]:
+        """Find large gaps in calendar (potential focus time)."""
+        if not events:
+            return []
+        
+        sorted_events = sorted(events, key=lambda e: e['start'])
+        
+        gaps = []
+        for i in range(len(sorted_events) - 1):
+            current_end = self._parse_iso_datetime(sorted_events[i]['end'])
+            next_start = self._parse_iso_datetime(sorted_events[i + 1]['start'])
+            
+            if current_end and next_start:
+                gap_hours = (next_start - current_end).total_seconds() / 3600
+                
+                if gap_hours >= min_gap_hours:
+                    gaps.append({
+                        'start': current_end,
+                        'end': next_start,
+                        'duration_hours': gap_hours,
+                        'before_event': sorted_events[i]['summary'],
+                        'after_event': sorted_events[i + 1]['summary']
+                    })
+        
+        return gaps
+    
+    def detect_conflicts(self, events: List[Dict]) -> List[Dict]:
+        """Detect overlapping events."""
+        if not events:
+            return []
+        
+        conflicts = []
+        sorted_events = sorted(events, key=lambda e: e['start'])
+        
+        for i in range(len(sorted_events)):
+            for j in range(i + 1, len(sorted_events)):
+                event_a = sorted_events[i]
+                event_b = sorted_events[j]
+                
+                start_a = self._parse_iso_datetime(event_a['start'])
+                end_a = self._parse_iso_datetime(event_a['end'])
+                start_b = self._parse_iso_datetime(event_b['start'])
+                end_b = self._parse_iso_datetime(event_b['end'])
+                
+                if not all([start_a, end_a, start_b, end_b]):
+                    continue
+                
+                if start_a < end_b and start_b < end_a:
+                    conflicts.append({
+                        'event_1': event_a['summary'],
+                        'event_2': event_b['summary'],
+                        'time_1': f"{start_a} - {end_a}",
+                        'time_2': f"{start_b} - {end_b}"
+                    })
+        
+        return conflicts
+    
+    def _parse_iso_datetime(self, dt_str: str) -> Optional[datetime]:
+        """Parse ISO datetime string."""
+        try:
+            if dt_str.endswith('Z'):
+                return datetime.fromisoformat(dt_str[:-1])
+            return datetime.fromisoformat(dt_str)
+        except Exception:
+            return None
 
 
 if __name__ == '__main__':
