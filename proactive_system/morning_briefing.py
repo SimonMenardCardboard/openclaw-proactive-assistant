@@ -21,6 +21,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from context_database import ContextDatabase
 from universal_email_api import UniversalAccountManager as EmailManager
 from universal_calendar_api import UniversalCalendarManager as CalendarManager
+from email_priority import EmailPriorityScorer
+from calendar_conflicts import CalendarConflictDetector
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,6 +38,8 @@ class MorningBriefing:
         self.db = ContextDatabase()
         self.email_manager = EmailManager()
         self.cal_manager = CalendarManager()
+        self.email_scorer = EmailPriorityScorer()
+        self.conflict_detector = CalendarConflictDetector()
     
     def generate(self) -> str:
         """Generate complete morning briefing."""
@@ -85,14 +89,8 @@ class MorningBriefing:
             return "🌆 Good evening!"
     
     def _generate_email_section(self) -> str:
-        """Generate email priority section."""
+        """Generate email priority section with intelligent scoring."""
         logger.info("Analyzing email...")
-        
-        # Get top contacts from context DB
-        top_contacts = self.db.get_top_contacts(limit=10)
-        
-        if not top_contacts:
-            return None
         
         # Get unread messages across all accounts
         all_unread = []
@@ -106,69 +104,53 @@ class MorningBriefing:
             
             unread = api.get_unread_messages(hours_back=24, max_results=50)
             
-            # Score each unread by contact importance
             for msg in unread:
-                from_addr = self._extract_email(msg['from'])
-                
-                # Find contact in top contacts
-                contact = next((c for c in top_contacts if c['email'] == from_addr), None)
-                
-                if contact:
-                    msg['importance_score'] = contact['importance_score']
-                    msg['avg_response_hours'] = contact.get('avg_response_hours')
-                    msg['contact_name'] = contact['name']
-                    msg['account'] = email
-                else:
-                    msg['importance_score'] = 0
-                    msg['avg_response_hours'] = None
-                    msg['contact_name'] = from_addr
-                    msg['account'] = email
-                
+                msg['account'] = email
                 all_unread.append(msg)
         
         if not all_unread:
             return "📧 **Email:** All caught up! ✅\n"
         
-        # Sort by importance
-        all_unread.sort(key=lambda m: m['importance_score'], reverse=True)
+        # Use priority scorer to rank emails
+        priority_summary = self.email_scorer.get_priority_summary(all_unread)
         
         # Build section
-        lines = [f"📧 **Email** ({len(all_unread)} unread):\n"]
+        lines = [f"📧 **Email** ({priority_summary['total']} unread):\n"]
         
-        # High priority (top 3)
-        high_priority = [m for m in all_unread if m['importance_score'] > 30][:3]
-        
-        if high_priority:
-            lines.append("**High Priority:**")
-            for msg in high_priority:
-                name = msg['contact_name']
-                subject = msg['subject'][:50]
-                
-                # Check if response is overdue
-                if msg.get('avg_response_hours') and msg['avg_response_hours'] < 12:
-                    lines.append(f"  ⚠️ **{name}**: {subject}")
-                    lines.append(f"     (You usually reply in {msg['avg_response_hours']:.1f}h)")
-                else:
-                    lines.append(f"  • **{name}**: {subject}")
+        # Critical emails
+        if priority_summary['critical_count'] > 0:
+            lines.append("🚨 **CRITICAL:**")
+            for email_score in priority_summary['critical_emails'][:3]:
+                subject = email_score['subject'][:60]
+                reasons = ", ".join(email_score['reasons'][:2])
+                lines.append(f"  • {subject}")
+                lines.append(f"    {reasons}")
             lines.append("")
         
-        # Show total by account
-        by_account = {}
-        for msg in all_unread:
-            account = msg['account']
-            by_account[account] = by_account.get(account, 0) + 1
+        # High priority emails
+        if priority_summary['high_count'] > 0:
+            lines.append("⚠️ **High Priority:**")
+            for email_score in priority_summary['high_emails'][:3]:
+                subject = email_score['subject'][:60]
+                reasons = ", ".join(email_score['reasons'][:2]) if email_score['reasons'] else "Important contact"
+                lines.append(f"  • {subject}")
+                if reasons:
+                    lines.append(f"    {reasons}")
+            lines.append("")
         
-        if len(by_account) > 1:
-            lines.append("**By Account:**")
-            for account, count in by_account.items():
-                account_short = account.split('@')[0]
-                lines.append(f"  • {account_short}: {count} unread")
+        # Show total by priority
+        if priority_summary['medium_count'] > 0 or priority_summary['low_count'] > 0:
+            lines.append("**Summary:**")
+            if priority_summary['medium_count'] > 0:
+                lines.append(f"  • {priority_summary['medium_count']} medium priority")
+            if priority_summary['low_count'] > 0:
+                lines.append(f"  • {priority_summary['low_count']} low priority")
             lines.append("")
         
         return "\n".join(lines)
     
     def _generate_calendar_section(self) -> str:
-        """Generate calendar section."""
+        """Generate calendar section with conflict detection."""
         logger.info("Analyzing calendar...")
         
         # Get today's events across all calendars
@@ -188,12 +170,30 @@ class MorningBriefing:
         if not today_events:
             return "📅 **Calendar:** No meetings today ✨\n"
         
+        # Detect conflicts
+        conflicts = self.conflict_detector.detect_conflicts(today_events, today)
+        
         # Sort by start time
         today_events.sort(key=lambda e: self._parse_datetime(e['start']))
         
         # Build section
-        lines = [f"📅 **Calendar** ({len(today_events)} meetings today):\n"]
+        lines = [f"📅 **Calendar** ({len(today_events)} meetings today)"]
         
+        # Show conflicts first if any
+        if conflicts['severity'] in ['CRITICAL', 'HIGH']:
+            lines.append(f"⚠️ **{conflicts['severity']} Conflicts Detected:**\n")
+            for suggestion in conflicts['suggestions'][:3]:
+                lines.append(f"  {suggestion}")
+            lines.append("")
+        elif conflicts['severity'] == 'MEDIUM':
+            lines.append(f"⚠️ **Scheduling Notes:**\n")
+            for suggestion in conflicts['suggestions'][:2]:
+                lines.append(f"  {suggestion}")
+            lines.append("")
+        else:
+            lines.append("\n")
+        
+        # Show meetings
         for event in today_events[:5]:  # Show first 5
             start_time = self._parse_datetime(event['start'])
             summary = event['summary']
@@ -228,7 +228,7 @@ class MorningBriefing:
         return "\n".join(lines)
     
     def _generate_focus_time_section(self) -> str:
-        """Generate focus time section."""
+        """Generate focus time section with quality assessment."""
         logger.info("Analyzing focus time...")
         
         # Get today's events
@@ -247,34 +247,44 @@ class MorningBriefing:
         if not today_events:
             return None
         
-        # Find gaps
-        gaps = []
-        for account_email, events in all_events.items():
-            api = self.cal_manager.get_account(account_email)
-            if api:
-                account_gaps = api.find_focus_time_gaps(events, min_gap_hours=2.0)
-                
-                # Filter to today only
-                for gap in account_gaps:
-                    if gap['start'].date() == today:
-                        gaps.append(gap)
+        # Use conflict detector to find focus time windows
+        focus_windows = self.conflict_detector.get_focus_time_windows(today_events, today, min_hours=2.0)
         
-        if not gaps:
+        if not focus_windows:
             return None
         
-        # Sort by duration
-        gaps.sort(key=lambda g: g['duration_hours'], reverse=True)
+        # Sort by quality then duration
+        quality_order = {'excellent': 0, 'good': 1, 'fair': 2, 'poor': 3}
+        focus_windows.sort(key=lambda w: (quality_order.get(w['quality'], 99), -w['duration_hours']))
         
         # Build section
         lines = ["🎯 **Focus Time:**\n"]
         
-        best_gap = gaps[0]
-        start_time = best_gap['start'].strftime('%I:%M%p').lstrip('0').lower()
-        end_time = best_gap['end'].strftime('%I:%M%p').lstrip('0').lower()
-        duration = best_gap['duration_hours']
+        # Show best window
+        best_window = focus_windows[0]
+        start_time = best_window['start'].strftime('%I:%M%p').lstrip('0').lower()
+        end_time = best_window['end'].strftime('%I:%M%p').lstrip('0').lower()
+        duration = best_window['duration_hours']
+        quality = best_window['quality']
         
-        lines.append(f"  • **{start_time} - {end_time}** ({duration:.1f}h clear)")
-        lines.append(f"    Perfect for deep work ✨")
+        quality_emoji = {
+            'excellent': '✨',
+            'good': '👍',
+            'fair': '✅',
+            'poor': '⏰'
+        }
+        
+        lines.append(f"  • **{start_time} - {end_time}** ({duration:.1f}h) {quality_emoji.get(quality, '')}")
+        lines.append(f"    {quality.title()} time for deep work")
+        
+        # Show second window if available and good quality
+        if len(focus_windows) > 1 and focus_windows[1]['quality'] in ['excellent', 'good']:
+            second = focus_windows[1]
+            start_time = second['start'].strftime('%I:%M%p').lstrip('0').lower()
+            end_time = second['end'].strftime('%I:%M%p').lstrip('0').lower()
+            duration = second['duration_hours']
+            lines.append(f"  • {start_time} - {end_time} ({duration:.1f}h)")
+        
         lines.append("")
         
         return "\n".join(lines)
