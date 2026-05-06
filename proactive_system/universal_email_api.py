@@ -273,12 +273,30 @@ class UniversalAccountManager:
             return
         
         import sqlite3
+        from pathlib import Path
+        import json
+        import tempfile
+        
+        # Load OAuth client credentials from COS credentials file
+        creds_path = Path.home() / '.openclaw/workspace/integrations/direct_api/credentials.json'
+        client_id = None
+        client_secret = None
+        
+        if creds_path.exists():
+            with open(creds_path) as f:
+                creds_data = json.load(f)
+                client_id = creds_data.get('installed', {}).get('client_id')
+                client_secret = creds_data.get('installed', {}).get('client_secret')
+        
+        if not client_id or not client_secret:
+            logger.error("[Account Manager] OAuth credentials not found")
+            return
         
         conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
         
         cursor.execute('''
-            SELECT account_id, email, account_type 
+            SELECT account_id, email, account_type, access_token, refresh_token, id_token
             FROM oauth_tokens 
             WHERE enabled = 1
         ''')
@@ -286,13 +304,28 @@ class UniversalAccountManager:
         rows = cursor.fetchall()
         conn.close()
         
-        for account_id, email, account_type in rows:
+        for account_id, email, account_type, access_token, refresh_token, id_token in rows:
             try:
                 # Map account_type to provider
                 provider = 'gmail' if account_type == 'gmail' else 'microsoft'
                 
-                # Initialize universal API for this account
-                api = UniversalEmailAPI(email=email, provider=provider)
+                # Create temporary token file from database tokens
+                token_data = {
+                    'token': access_token,
+                    'refresh_token': refresh_token,
+                    'id_token': id_token,
+                    'token_uri': 'https://oauth2.googleapis.com/token',
+                    'client_id': client_id,
+                    'client_secret': client_secret
+                }
+                
+                # Write to temp file for backend API
+                temp_token = Path(tempfile.gettempdir()) / f'openclaw_token_{account_id}.json'
+                with open(temp_token, 'w') as f:
+                    json.dump(token_data, f)
+                
+                # Initialize universal API with temp token file
+                api = UniversalEmailAPI(email=email, provider=provider, token_file=temp_token)
                 
                 self.accounts[account_id] = {
                     'email': email,
