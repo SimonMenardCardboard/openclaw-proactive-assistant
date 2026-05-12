@@ -318,9 +318,9 @@ if __name__ == '__main__':
     test_text = """
     User Dashboard
     Welcome, John!
-    Password: mysecret123
-    API Key: sk_live_1234567890abcdefghijklmnop
-    Credit Card: 4532 1234 5678 9010
+    Password: [REDACTED]
+    API Key: [REDACTED]
+    Credit Card: [REDACTED]
     Normal text here
     """
     

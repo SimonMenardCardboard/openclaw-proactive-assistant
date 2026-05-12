@@ -14,8 +14,10 @@ import sys
 # Add parent dirs to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'integrations/intelligence'))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'integrations/proactive_daemon'))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / 'api'))
 
 from proactive_queue import ProactiveQueue
+from pattern_discovery import PatternDiscovery
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
