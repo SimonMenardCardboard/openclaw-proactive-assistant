@@ -19,8 +19,8 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
-# Configuration
-CONTROL_PLANE_URL = "https://control.getcardboardai.com"
+# Default configuration (can be overridden via command line)
+DEFAULT_CONTROL_PLANE_URL = "https://control.getcardboardai.com"
 POLLING_INTERVAL = 2  # seconds
 CODE_EXPIRY = 300  # 5 minutes
 
@@ -48,7 +48,7 @@ def get_device_info():
     }
 
 
-def request_device_link():
+def request_device_link(control_plane_url):
     """
     Request a device link and get a 6-digit code.
     
@@ -59,7 +59,7 @@ def request_device_link():
     
     try:
         response = requests.post(
-            f"{CONTROL_PLANE_URL}/api/devices/request-link",
+            f"{control_plane_url}/api/devices/request-link",
             json={'device_info': device_info},
             timeout=10
         )
@@ -76,7 +76,7 @@ def request_device_link():
         return None
 
 
-def check_approval(code):
+def check_approval(code, control_plane_url):
     """
     Check if the link request has been approved.
     
@@ -88,7 +88,7 @@ def check_approval(code):
     """
     try:
         response = requests.get(
-            f"{CONTROL_PLANE_URL}/api/devices/check-approval",
+            f"{control_plane_url}/api/devices/check-approval",
             params={'code': code},
             timeout=10
         )
@@ -240,7 +240,7 @@ def start_observing(device_token, vm_url, interval_minutes=5):
     return 0
 
 
-def link_device_flow():
+def link_device_flow(control_plane_url):
     """
     Complete device linking flow:
     1. Request link code
@@ -254,7 +254,7 @@ def link_device_flow():
     
     # Step 1: Request link
     print("📡 Requesting device link...")
-    link_request = request_device_link()
+    link_request = request_device_link(control_plane_url)
     
     if not link_request:
         print("❌ Failed to request device link")
@@ -276,7 +276,7 @@ def link_device_flow():
             return 1
         
         # Check for approval
-        approval = check_approval(code)
+        approval = check_approval(code, control_plane_url)
         
         if approval:
             # Step 4: Save credentials
@@ -332,15 +332,13 @@ Examples:
     
     parser.add_argument(
         '--control-plane',
-        default=CONTROL_PLANE_URL,
-        help=f'Control plane URL (default: {CONTROL_PLANE_URL})'
+        default=DEFAULT_CONTROL_PLANE_URL,
+        help=f'Control plane URL (default: {DEFAULT_CONTROL_PLANE_URL})'
     )
     
     args = parser.parse_args()
     
-    # Override control plane URL if provided
-    global CONTROL_PLANE_URL
-    CONTROL_PLANE_URL = args.control_plane
+    control_plane_url = args.control_plane
     
     # Check if already linked (unless --relink)
     if not args.relink:
@@ -360,7 +358,7 @@ Examples:
             )
     
     # Start device linking flow
-    return link_device_flow()
+    return link_device_flow(control_plane_url)
 
 
 if __name__ == '__main__':
