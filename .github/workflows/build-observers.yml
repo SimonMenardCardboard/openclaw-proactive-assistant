@@ -27,76 +27,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller psutil requests pillow pytesseract
       
-      - name: Create entry point
+      - name: Copy correct entry point
         shell: pwsh
         run: |
-          $mainScript = @'
-          #!/usr/bin/env python3
-          """
-          Transmogrifier Desktop Observer - Windows
-          """
-          import sys
-          import os
-          import argparse
-          import json
-          import time
-          import requests
-          from datetime import datetime
-          from cross_platform_observer import CrossPlatformObserver
-          
-          class ObserverAPI:
-              def __init__(self, api_url: str, api_token: str):
-                  self.api_url = api_url.rstrip('/')
-                  self.api_token = api_token
-                  self.observer = CrossPlatformObserver()
-              
-              def send_observation(self, observation: dict) -> bool:
-                  try:
-                      headers = {
-                          'Authorization': f'Bearer {self.api_token}',
-                          'Content-Type': 'application/json'
-                      }
-                      response = requests.post(
-                          f'{self.api_url}/api/activity',
-                          json=observation,
-                          headers=headers,
-                          timeout=10
-                      )
-                      return response.status_code == 200
-                  except Exception as e:
-                      print(f"❌ Failed to send: {e}")
-                      return False
-              
-              def run(self, interval_minutes: int = 5):
-                  print(f"🔄 Observer running (interval: {interval_minutes} min)")
-                  while True:
-                      try:
-                          observation = self.observer.observe_session(interval_minutes)
-                          observation['uploaded_at'] = datetime.utcnow().isoformat()
-                          if self.send_observation(observation):
-                              print(f"✅ Uploaded {len(observation.get('activities', []))} activities")
-                          time.sleep(interval_minutes * 60)
-                      except KeyboardInterrupt:
-                          break
-                      except Exception as e:
-                          print(f"❌ Error: {e}")
-                          time.sleep(60)
-          
-          def main():
-              parser = argparse.ArgumentParser(description='Transmogrifier Desktop Observer')
-              parser.add_argument('--api-url', required=True, help='VM API URL')
-              parser.add_argument('--token', required=True, help='API token')
-              parser.add_argument('--interval', type=int, default=5, help='Interval (minutes)')
-              args = parser.parse_args()
-              
-              observer_api = ObserverAPI(args.api_url, args.token)
-              observer_api.run(args.interval)
-              return 0
-          
-          if __name__ == '__main__':
-              sys.exit(main())
-          '@
-          Set-Content -Path "desktop-observer/observer_main.py" -Value $mainScript
+          Copy-Item "desktop-observer/observer_main_correct.py" "desktop-observer/observer_main.py"
       
       - name: Build Windows executable
         run: |
@@ -135,74 +69,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller psutil requests pillow python-xlib
       
-      - name: Create entry point
+      - name: Copy correct entry point
         run: |
-          cat > desktop-observer/observer_main.py << 'PYEOF'
-          #!/usr/bin/env python3
-          """
-          Transmogrifier Desktop Observer - Linux
-          """
-          import sys
-          import os
-          import argparse
-          import json
-          import time
-          import requests
-          from datetime import datetime
-          from cross_platform_observer import CrossPlatformObserver
-          
-          class ObserverAPI:
-              def __init__(self, api_url: str, api_token: str):
-                  self.api_url = api_url.rstrip('/')
-                  self.api_token = api_token
-                  self.observer = CrossPlatformObserver()
-              
-              def send_observation(self, observation: dict) -> bool:
-                  try:
-                      headers = {
-                          'Authorization': f'Bearer {self.api_token}',
-                          'Content-Type': 'application/json'
-                      }
-                      response = requests.post(
-                          f'{self.api_url}/api/activity',
-                          json=observation,
-                          headers=headers,
-                          timeout=10
-                      )
-                      return response.status_code == 200
-                  except Exception as e:
-                      print(f"❌ Failed to send: {e}")
-                      return False
-              
-              def run(self, interval_minutes: int = 5):
-                  print(f"🔄 Observer running (interval: {interval_minutes} min)")
-                  while True:
-                      try:
-                          observation = self.observer.observe_session(interval_minutes)
-                          observation['uploaded_at'] = datetime.utcnow().isoformat()
-                          if self.send_observation(observation):
-                              print(f"✅ Uploaded {len(observation.get('activities', []))} activities")
-                          time.sleep(interval_minutes * 60)
-                      except KeyboardInterrupt:
-                          break
-                      except Exception as e:
-                          print(f"❌ Error: {e}")
-                          time.sleep(60)
-          
-          def main():
-              parser = argparse.ArgumentParser(description='Transmogrifier Desktop Observer')
-              parser.add_argument('--api-url', required=True, help='VM API URL')
-              parser.add_argument('--token', required=True, help='API token')
-              parser.add_argument('--interval', type=int, default=5, help='Interval (minutes)')
-              args = parser.parse_args()
-              
-              observer_api = ObserverAPI(args.api_url, args.token)
-              observer_api.run(args.interval)
-              return 0
-          
-          if __name__ == '__main__':
-              sys.exit(main())
-          PYEOF
+          cp desktop-observer/observer_main_correct.py desktop-observer/observer_main.py
       
       - name: Build Linux executable
         run: |
