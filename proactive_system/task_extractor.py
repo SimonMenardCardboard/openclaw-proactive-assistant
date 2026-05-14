@@ -245,6 +245,156 @@ class TaskExtractor:
                 seen_titles.add(title_normalized)
         
         return unique_tasks
+    
+    def confirm_task(self, task_id: int) -> bool:
+        """
+        User confirms a task is real.
+        Logs action for learning.
+        
+        Args:
+            task_id: Task ID to confirm
+            
+        Returns:
+            Success boolean
+        """
+        try:
+            conn = self.db.get_connection()
+            cursor = conn.cursor()
+            
+            # Update task status
+            cursor.execute('''
+                UPDATE tasks
+                SET status = 'confirmed'
+                WHERE id = ?
+            ''', (task_id,))
+            
+            # Log action for learning
+            cursor.execute('''
+                INSERT INTO task_actions (task_id, action)
+                VALUES (?, 'confirmed')
+            ''', (task_id,))
+            
+            conn.commit()
+            logger.info(f"✅ Task {task_id} confirmed")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error confirming task {task_id}: {e}")
+            return False
+    
+    def dismiss_task(self, task_id: int) -> bool:
+        """
+        User dismisses a task as incorrect.
+        Logs action for learning (improve extraction).
+        
+        Args:
+            task_id: Task ID to dismiss
+            
+        Returns:
+            Success boolean
+        """
+        try:
+            conn = self.db.get_connection()
+            cursor = conn.cursor()
+            
+            # Update task status
+            cursor.execute('''
+                UPDATE tasks
+                SET status = 'dismissed'
+                WHERE id = ?
+            ''', (task_id,))
+            
+            # Log action for learning
+            cursor.execute('''
+                INSERT INTO task_actions (task_id, action)
+                VALUES (?, 'dismissed')
+            ''', (task_id,))
+            
+            conn.commit()
+            logger.info(f"❌ Task {task_id} dismissed")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error dismissing task {task_id}: {e}")
+            return False
+    
+    def complete_task(self, task_id: int) -> bool:
+        """
+        Mark a task as completed.
+        
+        Args:
+            task_id: Task ID to complete
+            
+        Returns:
+            Success boolean
+        """
+        try:
+            conn = self.db.get_connection()
+            cursor = conn.cursor()
+            
+            # Mark completed
+            cursor.execute('''
+                UPDATE tasks
+                SET completed = 1, completed_at = ?, status = 'completed'
+                WHERE id = ?
+            ''', (datetime.now(), task_id))
+            
+            # Log action
+            cursor.execute('''
+                INSERT INTO task_actions (task_id, action)
+                VALUES (?, 'completed')
+            ''', (task_id,))
+            
+            conn.commit()
+            logger.info(f"✅ Task {task_id} completed")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error completing task {task_id}: {e}")
+            return False
+    
+    def get_pending_tasks(self, limit: int = 50, min_confidence: float = 0.5) -> List[Dict]:
+        """
+        Get pending tasks for user review.
+        
+        Args:
+            limit: Max tasks to return
+            min_confidence: Minimum confidence score
+            
+        Returns:
+            List of pending tasks
+        """
+        try:
+            conn = self.db.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT id, title, description, priority, deadline, 
+                       source, contact_email, confidence
+                FROM tasks
+                WHERE status = 'pending' AND confidence >= ?
+                ORDER BY priority ASC, deadline ASC
+                LIMIT ?
+            ''', (min_confidence, limit))
+            
+            tasks = []
+            for row in cursor.fetchall():
+                tasks.append({
+                    'id': row[0],
+                    'title': row[1],
+                    'description': row[2],
+                    'priority': row[3],
+                    'deadline': row[4],
+                    'source': row[5],
+                    'contact_email': row[6],
+                    'confidence': row[7]
+                })
+            
+            return tasks
+            
+        except Exception as e:
+            logger.error(f"Error getting pending tasks: {e}")
+            return []
 
 
 def test_task_extractor():
