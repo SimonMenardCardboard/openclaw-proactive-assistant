@@ -1076,7 +1076,6 @@ Want me to create a workflow?"""
             topic = pattern.get('topic', 'certain topics')
             return f"""🔍 **Research pattern detected**
 
-You frequently research {topic} ({count} times).
 
 **What I can do:**
 • Save common searches as shortcuts
