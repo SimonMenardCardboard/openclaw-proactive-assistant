@@ -102,7 +102,7 @@ class UniversalEmailAPI:
     
     def _default_token_file(self, provider: str) -> Path:
         """Get default token file path for provider."""
-        base_path = Path.home() / '.openclaw/workspace/integrations/intelligence/config'
+        base_path = Path.home() / '.openclaw/workspace/transmogrifier/openclaw-proactive-assistant/config'
         
         if provider == 'gmail':
             # Try account-specific token first
@@ -278,7 +278,7 @@ class UniversalAccountManager:
         import tempfile
         
         # Load OAuth client credentials from Transmogrifier OAuth credentials file
-        creds_path = Path.home() / '.openclaw/workspace/integrations/intelligence/config/credentials.json'
+        creds_path = Path.home() / '.openclaw/workspace/transmogrifier/openclaw-proactive-assistant/config/credentials.json'
         client_id = None
         client_secret = None
         

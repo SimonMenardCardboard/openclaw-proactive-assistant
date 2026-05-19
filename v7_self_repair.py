@@ -760,7 +760,7 @@ class SelfRepair:
             # Determine which OAuth system to refresh
             if "google" in diagnosis.service.lower() or "gmail" in diagnosis.service.lower():
                 # Google OAuth refresh
-                token_file = self.workspace / "integrations/direct_api/token.json"
+                token_file = self.workspace / "transmogrifier/openclaw-proactive-assistant/config/default_google_personal.json"
                 if not token_file.exists():
                     print(f"      ❌ Token file not found: {token_file}")
                     return False

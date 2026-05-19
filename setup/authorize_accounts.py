@@ -18,9 +18,9 @@ SCOPES = [
     'https://www.googleapis.com/auth/calendar.events.readonly'
 ]
 
-# Credentials file
-CREDS_FILE = Path.home() / '.openclaw/workspace/integrations/direct_api/credentials.json'
-CONFIG_DIR = Path.home() / '.openclaw/workspace/integrations/intelligence/config'
+# Credentials file - Transmogrifier uses its own credentials
+CREDS_FILE = Path.home() / '.openclaw/workspace/transmogrifier/openclaw-proactive-assistant/config/credentials.json'
+CONFIG_DIR = Path.home() / '.openclaw/workspace/transmogrifier/openclaw-proactive-assistant/config'
 
 def authorize_account(account_label: str, hint_email: str) -> bool:
     """Authorize one Google account"""

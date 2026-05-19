@@ -96,7 +96,7 @@ I'll notify you as soon as I find something! 🐯"""
         # Use real OAuth tokens to pull actual data
         from pathlib import Path
         
-        config_dir = Path.home() / '.openclaw/workspace/integrations/intelligence/config'
+        config_dir = Path.home() / '.openclaw/workspace/transmogrifier/openclaw-proactive-assistant/config'
         token_file = config_dir / f'{self.user_id}_google_personal.json'
         
         # Try to load real Gmail data

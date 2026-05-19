@@ -37,7 +37,7 @@ import sqlite3
 
 # Add paths for imports
 sys.path.insert(0, str(Path.home() / ".openclaw/workspace/integrations/intelligence/integration"))
-sys.path.insert(0, str(Path.home() / ".openclaw/workspace/integrations/direct_api"))
+sys.path.insert(0, str(Path.home() / ".openclaw/workspace/transmogrifier/openclaw-proactive-assistant"))
 
 from calendar_api import CalendarAPI
 

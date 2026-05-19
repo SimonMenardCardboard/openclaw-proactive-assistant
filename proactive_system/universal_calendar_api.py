@@ -87,7 +87,7 @@ class UniversalCalendarAPI:
     
     def _default_token_file(self, provider: str) -> Path:
         """Get default token file path for provider."""
-        base_path = Path.home() / '.openclaw/workspace/integrations/intelligence/config'
+        base_path = Path.home() / '.openclaw/workspace/transmogrifier/openclaw-proactive-assistant/config'
         
         if provider == 'google':
             email_safe = self.email.replace('@', '_at_').replace('.', '_')
@@ -249,7 +249,7 @@ class UniversalCalendarManager:
         import tempfile
         
         # Load OAuth credentials
-        creds_path = Path.home() / '.openclaw/workspace/integrations/intelligence/config/credentials.json'
+        creds_path = Path.home() / '.openclaw/workspace/transmogrifier/openclaw-proactive-assistant/config/credentials.json'
         client_id = None
         client_secret = None
         

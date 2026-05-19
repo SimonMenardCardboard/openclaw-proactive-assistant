@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 
 # Add paths
 sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path.home() / '.openclaw/workspace/integrations/direct_api'))
+sys.path.insert(0, str(Path.home() / '.openclaw/workspace/transmogrifier/openclaw-proactive-assistant'))
 
 try:
     from gmail_api import GmailAPI

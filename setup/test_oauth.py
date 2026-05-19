@@ -9,7 +9,7 @@ from pathlib import Path
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-CONFIG_DIR = Path.home() / '.openclaw/workspace/integrations/intelligence/config'
+CONFIG_DIR = Path.home() / '.openclaw/workspace/transmogrifier/openclaw-proactive-assistant/config'
 
 def test_account(label: str):
     """Test one account"""

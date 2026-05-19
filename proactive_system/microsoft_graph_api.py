@@ -483,7 +483,7 @@ class MicrosoftGraphAPI:
 
 if __name__ == '__main__':
     # Test Microsoft Graph API - 30-day analysis
-    token_file = Path.home() / '.openclaw/workspace/integrations/intelligence/config/default_google_work.json'
+    token_file = Path.home() / '.openclaw/workspace/transmogrifier/openclaw-proactive-assistant/config/default_google_work.json'
     
     if not token_file.exists():
         # Try alternate location

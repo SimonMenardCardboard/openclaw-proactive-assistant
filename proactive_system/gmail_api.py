@@ -375,4 +375,4 @@ if __name__ == '__main__':
         
     else:
         print(f"❌ Token file not found: {token_file}")
-        print("   Run auth setup first: python3 ~/.openclaw/workspace/integrations/intelligence/config/auth/setup.py")
+        print("   Run auth setup first: python3 ~/.openclaw/workspace/transmogrifier/openclaw-proactive-assistant/setup/authorize_accounts.py")

@@ -2,7 +2,7 @@
 Transmogrifier OAuth Configuration
 
 All OAuth tokens for Transmogrifier app (publishing-ready product).
-Directory: ~/.openclaw/workspace/integrations/intelligence/config/
+Directory: ~/.openclaw/workspace/transmogrifier/openclaw-proactive-assistant/config/
 
 NOT COS-specific, NOT CLI - pure Transmogrifier app OAuth.
 """
@@ -10,7 +10,7 @@ NOT COS-specific, NOT CLI - pure Transmogrifier app OAuth.
 from pathlib import Path
 from typing import Dict
 
-TRANSMOGRIFIER_CONFIG_DIR = Path.home() / '.openclaw/workspace/integrations/intelligence/config'
+TRANSMOGRIFIER_CONFIG_DIR = Path.home() / '.openclaw/workspace/transmogrifier/openclaw-proactive-assistant/config'
 
 TRANSMOGRIFIER_TOKENS = {
     'lacrosseguy76665@gmail.com': TRANSMOGRIFIER_CONFIG_DIR / 'default_google_personal.json',
