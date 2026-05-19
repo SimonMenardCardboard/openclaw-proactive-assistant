@@ -322,10 +322,10 @@ class GmailAPI:
 
 if __name__ == '__main__':
     # Test Gmail API - 30-day analysis
-    # Always use COS tokens in transmogrifier
-    from cos_token_config import get_cos_token_path
+    # Always use Transmogrifier OAuth in transmogrifier
+    from transmogrifier_oauth import get_transmogrifier_token_path
     
-    token_file = get_cos_token_path('lacrosseguy76665@gmail.com')
+    token_file = get_transmogrifier_token_path('lacrosseguy76665@gmail.com')
     
     if token_file.exists():
         print("\n" + "="*60)
