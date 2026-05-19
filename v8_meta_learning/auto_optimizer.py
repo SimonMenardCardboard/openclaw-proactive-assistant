@@ -957,7 +957,135 @@ You have {count} {category} meetings regularly.
 
 Want me to streamline these?"""
         
-        else:
+        
+        # Location patterns
+        elif pattern_type == 'frequent_location':
+            location = pattern.get('location', 'this place')
+            return f"""📍 **Location pattern detected**
+
+You visit {location} regularly ({count} times).
+
+**What I can do:**
+• Auto-enable "work mode" when you arrive
+• Send arrival notifications to family
+• Log time spent for productivity tracking
+• Trigger location-based reminders
+
+Want me to set up location automation?"""
+        
+        elif pattern_type == 'commute_pattern':
+            route = pattern.get('route', 'your commute')
+            return f"""🚗 **Commute pattern detected**
+
+You regularly travel {route} ({count} times).
+
+**What I can do:**
+• Check traffic before you leave
+• Suggest optimal departure time
+• Play your commute playlist automatically
+• Log commute time for expense reports
+
+Want me to automate your commute?"""
+        
+        elif pattern_type == 'geofence_trigger':
+            location = pattern.get('location', 'this area')
+            return f"""📍 **Geofence pattern detected**
+
+You frequently perform actions when entering/leaving {location}.
+
+**What I can do:**
+• Auto-trigger workflows on arrival/departure
+• Send notifications when you reach certain areas
+• Track time spent in different locations
+
+Want me to set this up?"""
+        
+        # App usage / mobile patterns
+        elif pattern_type == 'app_workflow':
+            app = pattern.get('app', 'an app')
+            actions = pattern.get('actions', [])
+            action_preview = ' → '.join(actions[:3]) if actions else 'workflow'
+            return f"""📱 **App usage pattern detected**
+
+You often use {app} to: {action_preview} ({count} times).
+
+**What I can do:**
+• Create shortcuts for this workflow
+• Auto-fill common fields
+• Suggest next steps based on context
+
+Want me to streamline this?"""
+        
+        elif pattern_type == 'app_launch_pattern':
+            apps = pattern.get('apps', [])
+            app_list = ', '.join(apps[:3]) if apps else 'your apps'
+            return f"""📱 **App launch pattern detected**
+
+You regularly open: {app_list} ({count} times).
+
+**What I can do:**
+• Create a one-tap workflow to launch all together
+• Set up context-based app suggestions
+• Track time spent in each app
+
+Want me to create an app bundle?"""
+        
+        # File operations patterns
+        elif pattern_type == 'file_workflow':
+            workflow = pattern.get('workflow', 'file operations')
+            return f"""📁 **File workflow detected**
+
+You frequently: {workflow} ({count} times).
+
+**What I can do:**
+• Automate repetitive file operations
+• Create templates for common tasks
+• Set up file organization rules
+
+Want me to automate this workflow?"""
+        
+        elif pattern_type == 'backup_pattern':
+            files = pattern.get('files', 'certain files')
+            return f"""💾 **Backup pattern detected**
+
+You regularly backup {files} ({count} times).
+
+**What I can do:**
+• Automatically backup on schedule
+• Verify backup integrity
+• Alert if backup hasn't run
+
+Want me to automate your backups?"""
+        
+        # Browser patterns
+        elif pattern_type == 'browsing_workflow':
+            sites = pattern.get('sites', [])
+            site_preview = ', '.join(sites[:3]) if sites else 'several sites'
+            return f"""🌐 **Browsing pattern detected**
+
+You often visit: {site_preview} in sequence ({count} times).
+
+**What I can do:**
+• Open all these sites with one click
+• Pre-fill login credentials
+• Track time spent on each
+
+Want me to create a workflow?"""
+        
+        elif pattern_type == 'research_pattern':
+            topic = pattern.get('topic', 'certain topics')
+            return f"""🔍 **Research pattern detected**
+
+You frequently research {topic} ({count} times).
+
+**What I can do:**
+• Save common searches as shortcuts
+• Organize research notes automatically
+• Track sources and citations
+
+Want me to streamline your research?"""
+        
+        else        else:
             # Generic message for unknown types
             description = pattern.get('description', pattern_type)
             if count >= 5:
