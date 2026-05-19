@@ -1085,7 +1085,7 @@ You frequently research {topic} ({count} times).
 
 Want me to streamline your research?"""
         
-        else        else:
+else:
             # Generic message for unknown types
             description = pattern.get('description', pattern_type)
             if count >= 5:
