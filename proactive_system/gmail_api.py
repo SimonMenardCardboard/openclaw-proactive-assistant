@@ -322,11 +322,10 @@ class GmailAPI:
 
 if __name__ == '__main__':
     # Test Gmail API - 30-day analysis
-    token_file = Path.home() / '.openclaw/workspace/integrations/direct_api/token.json'
+    # Always use COS tokens in transmogrifier
+    from cos_token_config import get_cos_token_path
     
-    if not token_file.exists():
-        # Try alternate location
-        token_file = Path.home() / '.openclaw/tokens/default_google_personal.json'
+    token_file = get_cos_token_path('lacrosseguy76665@gmail.com')
     
     if token_file.exists():
         print("\n" + "="*60)
@@ -376,4 +375,4 @@ if __name__ == '__main__':
         
     else:
         print(f"❌ Token file not found: {token_file}")
-        print("   Run auth setup first: python3 ~/.openclaw/workspace/integrations/direct_api/auth/setup.py")
+        print("   Run auth setup first: python3 ~/.openclaw/workspace/integrations/intelligence/config/auth/setup.py")

@@ -234,7 +234,7 @@ if __name__ == '__main__':
     print("="*60 + "\n")
     
     # Use COS token
-    token_file = Path.home() / '.openclaw/workspace/integrations/direct_api/token.json'
+    token_file = Path.home() / '.openclaw/workspace/integrations/intelligence/config/default_google_personal.json'
     
     if not token_file.exists():
         print(f"❌ Token file not found: {token_file}")
