@@ -2,7 +2,7 @@
 """
 Proactive Queue - Shared state for autonomous recommendations
 All background systems (V6/V7/V8/heartbeats/calendar) write here.
-COS Notifier reads and delivers via Telegram.
+Transmogrifier Notifier reads and delivers via Telegram.
 """
 
 import sqlite3

@@ -277,7 +277,7 @@ class UniversalAccountManager:
         import json
         import tempfile
         
-        # Load OAuth client credentials from COS credentials file
+        # Load OAuth client credentials from Transmogrifier OAuth credentials file
         creds_path = Path.home() / '.openclaw/workspace/integrations/intelligence/config/credentials.json'
         client_id = None
         client_secret = None

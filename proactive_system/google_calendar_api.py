@@ -233,12 +233,12 @@ if __name__ == '__main__':
     print("Google Calendar API - 30-Day Analysis Test")
     print("="*60 + "\n")
     
-    # Use COS token
+    # Use Transmogrifier OAuth token
     token_file = Path.home() / '.openclaw/workspace/integrations/intelligence/config/default_google_personal.json'
     
     if not token_file.exists():
         print(f"❌ Token file not found: {token_file}")
-        print("   This test requires COS OAuth tokens")
+        print("   This test requires Transmogrifier OAuth tokens")
         exit(1)
     
     cal = GoogleCalendarAPI(email='lacrosseguy76665@gmail.com', token_file=token_file)
