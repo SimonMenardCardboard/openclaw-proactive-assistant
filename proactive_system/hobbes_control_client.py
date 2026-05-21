@@ -109,6 +109,53 @@ class HobbesControlClient:
             logger.error(f"❌ Failed to get insights: {e}")
             return []
     
+    # Shell Optimization Routing (NEW for Transmogrifier)
+    
+    def submit_shell_optimization(self, pattern: Dict, generated_code: Dict, user_id: str) -> str:
+        """
+        Submit shell command optimization to Hobbes Control for automated approval.
+        
+        Control plane will:
+        1. Validate security (no sudo, no network, no PII access)
+        2. Sandbox test on control VM
+        3. Auto-approve if safe + beneficial
+        4. Deploy to user VM if approved
+        5. Notify user AFTER deployment (not before)
+        
+        Args:
+            pattern: Detected shell pattern
+            generated_code: Generated automation script
+            user_id: User identifier
+        
+        Returns:
+            control_id: Tracking ID from control plane
+        """
+        try:
+            response = requests.post(
+                f"{self.control_url}/api/shell/submit",
+                headers=self._headers(),
+                json={
+                    'pattern': pattern,
+                    'generated_code': generated_code,
+                    'user_id': user_id,
+                    'timestamp': datetime.now().isoformat()
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                control_id = result.get('control_id', 'unknown')
+                logger.info(f"✅ Shell optimization submitted to control: {control_id}")
+                return control_id
+            else:
+                logger.error(f"❌ Shell optimization submission failed: {response.status_code}")
+                raise Exception(f"Control plane returned {response.status_code}")
+                
+        except Exception as e:
+            logger.error(f"❌ Failed to submit shell optimization: {e}")
+            raise
+    
     # Question Routing
     
     def route_question(self, question: str, context: Dict) -> Optional[Dict]:
