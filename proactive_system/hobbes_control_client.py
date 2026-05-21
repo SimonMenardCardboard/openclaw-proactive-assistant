@@ -18,13 +18,15 @@ logger = logging.getLogger(__name__)
 class HobbesControlClient:
     """Client for Hobbes Control API - Federated pattern learning."""
     
-    # Production Hobbes Control endpoint
+    # Production Hobbes Control endpoint (default)
     CONTROL_URL = "https://control.getcardboardai.com"
     
     def __init__(self, user_id: str = 'default', token: Optional[str] = None):
         self.user_id = user_id
         self.token = token or self._load_token()
-        self.control_url = self.CONTROL_URL
+        # Allow override via environment variable (for testing/dev)
+        import os
+        self.control_url = os.getenv('HOBBES_CONTROL_URL', self.CONTROL_URL)
     
     def _load_token(self) -> str:
         """Load Hobbes Control token from config."""
