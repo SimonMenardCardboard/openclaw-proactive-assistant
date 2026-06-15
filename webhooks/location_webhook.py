@@ -38,12 +38,32 @@ if LOCATION_DB_AVAILABLE:
 else:
     location_db = None
 
-# Simple auth tokens (TODO: Use proper JWT with OAuth)
-# Format: {token: user_email}
-VALID_TOKENS = {
-    'simon-location-token-123': 'simon@legalmensch.com',
-    'test-token': 'test@example.com'
-}
+import os
+import sqlite3
+
+# Location tokens are validated against the user database.
+# Set LOCATION_DB_PATH env var or fall back to default proactive system DB.
+_LOCATION_TOKEN_DB = os.getenv(
+    'LOCATION_TOKEN_DB',
+    str(Path(__file__).parent.parent / 'data' / 'users.db')
+)
+
+def _get_user_by_location_token(token: str):
+    """Look up user email by location_token in the DB. Returns email or None."""
+    try:
+        conn = sqlite3.connect(_LOCATION_TOKEN_DB)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            'SELECT email FROM users WHERE location_token = ? AND status = ?',
+            (token, 'active')
+        ).fetchone()
+        conn.close()
+        return row['email'] if row else None
+    except Exception as e:
+        logging.warning(f'location_token DB lookup failed: {e}')
+        return None
+
+# Legacy static map removed — tokens now validated via DB (_get_user_by_location_token)
 
 # Rate limiting (simple in-memory)
 from collections import defaultdict
@@ -107,7 +127,7 @@ def update_location():
         return jsonify({'error': 'Missing or invalid auth token'}), 401
     
     token = auth_header.replace('Bearer ', '')
-    user_email = VALID_TOKENS.get(token)
+    user_email = _get_user_by_location_token(token)
     
     if not user_email:
         logging.warning(f"Invalid token: {token[:10]}...")
@@ -211,7 +231,7 @@ def get_places():
         return jsonify({'error': 'Missing auth'}), 401
     
     token = auth_header.replace('Bearer ', '')
-    user_email = VALID_TOKENS.get(token)
+    user_email = _get_user_by_location_token(token)
     
     if not user_email:
         return jsonify({'error': 'Invalid token'}), 401
@@ -256,7 +276,7 @@ def get_history():
         return jsonify({'error': 'Missing auth'}), 401
     
     token = auth_header.replace('Bearer ', '')
-    user_email = VALID_TOKENS.get(token)
+    user_email = _get_user_by_location_token(token)
     
     if not user_email:
         return jsonify({'error': 'Invalid token'}), 401
