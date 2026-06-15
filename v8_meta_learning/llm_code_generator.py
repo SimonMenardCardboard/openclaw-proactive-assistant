@@ -343,23 +343,24 @@ def track_operation(operation_id):
             escaped_prompt = prompt.replace('\\', '\\\\').replace('"""', '\\"\\"\\"')
             
             script = f'''#!/usr/bin/env python3
-import anthropic
+import os, requests
 
-# Use Anthropic client - auth inherited from OpenClaw process
-client = anthropic.Anthropic()  # Will use ANTHROPIC_API_KEY from env
+# Route through OpenClaw gateway — never call Anthropic directly
+gw_url   = os.environ.get("OPENCLAW_GATEWAY_URL", "http://localhost:28789")
+gw_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN", "")
 
 prompt = """{escaped_prompt}"""
 
-response = client.messages.create(
-    model="claude-sonnet-4-5",
-    max_tokens=4096,
-    messages=[{{
-        "role": "user",
-        "content": prompt
-    }}]
+resp = requests.post(
+    f"{{gw_url}}/v1/messages",
+    headers={{"x-api-key": gw_token, "content-type": "application/json"}},
+    json={{"model": "anthropic/claude-sonnet-4-6", "max_tokens": 4096,
+          "messages": [{{"role": "user", "content": prompt}}]}},
+    timeout=120,
 )
+resp.raise_for_status()
 
-print(response.content[0].text)
+print(resp.json()["content"][0]["text"])
 '''
 
             with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:

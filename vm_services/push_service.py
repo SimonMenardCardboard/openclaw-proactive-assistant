@@ -30,7 +30,52 @@ class PushService:
     def __init__(self, config_path: Optional[str] = None):
         self.queue = ProactiveQueue()
         self.config = self._load_config(config_path)
-        self.devices = {}  # {user_id: [device_tokens]}
+        self.devices = {}  # {user_id: [device_tokens]} — in-memory cache
+        self.devices_db = self._devices_db_path()
+        self._ensure_devices_schema()
+        self._load_devices_from_db()  # Restore tokens after restart
+
+    def _devices_db_path(self) -> Path:
+        import os
+        home = os.environ.get(
+            'TRANSMOGRIFIER_HOME',
+            str(Path.home() / '.openclaw/workspace/integrations/intelligence')
+        )
+        return Path(home) / 'device_tokens.db'
+
+    def _ensure_devices_schema(self):
+        import sqlite3
+        conn = sqlite3.connect(self.devices_db)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS device_tokens (
+                user_id TEXT NOT NULL,
+                token TEXT NOT NULL,
+                platform TEXT NOT NULL,
+                registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, token)
+            )
+        """)
+        conn.commit()
+        conn.close()
+
+    def _load_devices_from_db(self):
+        import sqlite3
+        conn = sqlite3.connect(self.devices_db)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT user_id, token, platform, registered_at FROM device_tokens").fetchall()
+        conn.close()
+        for row in rows:
+            uid = row['user_id']
+            if uid not in self.devices:
+                self.devices[uid] = []
+            self.devices[uid].append({
+                'token': row['token'],
+                'platform': row['platform'],
+                'registered_at': row['registered_at']
+            })
+        if self.devices:
+            total = sum(len(v) for v in self.devices.values())
+            logger.info(f"Loaded {total} device token(s) from DB across {len(self.devices)} user(s)")
     
     def _load_config(self, config_path: Optional[str]) -> Dict:
         """Load push service configuration."""
@@ -65,12 +110,27 @@ class PushService:
         existing = [d for d in self.devices[user_id] if d['token'] == device_token]
         if not existing:
             self.devices[user_id].append(device)
-            logger.info(f"Registered {platform} device for {user_id}")
-    
+            # Persist to DB so tokens survive VM restart
+            import sqlite3
+            conn = sqlite3.connect(self.devices_db)
+            conn.execute("""
+                INSERT OR REPLACE INTO device_tokens (user_id, token, platform)
+                VALUES (?, ?, ?)
+            """, (user_id, device_token, platform))
+            conn.commit()
+            conn.close()
+            logger.info(f"Registered {platform} device for {user_id} (persisted)")
+
     def unregister_device(self, user_id: str, device_token: str):
         """Remove device registration."""
         if user_id in self.devices:
             self.devices[user_id] = [d for d in self.devices[user_id] if d['token'] != device_token]
+            import sqlite3
+            conn = sqlite3.connect(self.devices_db)
+            conn.execute("DELETE FROM device_tokens WHERE user_id = ? AND token = ?",
+                         (user_id, device_token))
+            conn.commit()
+            conn.close()
             logger.info(f"Unregistered device for {user_id}")
     
     def format_notification(self, queue_item: Dict) -> Dict:

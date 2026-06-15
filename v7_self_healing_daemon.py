@@ -204,10 +204,48 @@ class SelfHealingDaemon:
         print(f"\n[{datetime.now().isoformat()}] Self-Healing Daemon stopped", flush=True)
         self._print_stats()
     
+    def _check_stale_daemon_flag(self):
+        """Check for stale_daemon.flag written by monitor_health_check.py.
+        If present, attempt launchctl restart of the named service, then delete flag."""
+        flag_path = self.workspace / 'logs' / 'stale_daemon.flag'
+        if not flag_path.exists():
+            return
+        try:
+            daemon_id = flag_path.read_text().strip()
+            if not daemon_id:
+                flag_path.unlink(missing_ok=True)
+                return
+            print(f"  [stale_monitor] Flag detected for: {daemon_id}", flush=True)
+            if self.dry_run:
+                print(f"  [stale_monitor] DRY RUN: would restart {daemon_id}", flush=True)
+            else:
+                import subprocess
+                # kickstart re-launches a stopped LaunchAgent/LaunchDaemon
+                result = subprocess.run(
+                    ['launchctl', 'kickstart', '-k', f'gui/{__import__("os").getuid()}/{daemon_id}'],
+                    capture_output=True, text=True, timeout=15
+                )
+                if result.returncode == 0:
+                    print(f"  [stale_monitor] ✅ Restarted {daemon_id}", flush=True)
+                else:
+                    # fallback: stop + start
+                    subprocess.run(['launchctl', 'stop', daemon_id], capture_output=True, timeout=10)
+                    subprocess.run(['launchctl', 'start', daemon_id], capture_output=True, timeout=10)
+                    print(f"  [stale_monitor] Attempted stop/start for {daemon_id}", flush=True)
+            flag_path.unlink(missing_ok=True)
+        except Exception as e:
+            print(f"  [stale_monitor] Error handling stale flag: {e}", flush=True)
+            try:
+                flag_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+
     def _health_check_cycle(self):
         """Execute one health check cycle."""
         now = datetime.now()
         print(f"[{now.isoformat()}] Health check starting...", flush=True)
+        # Check for stale daemon flags from monitor_health_check.py
+        self._check_stale_daemon_flag()
         
         # Check all services
         health_map = self.health_monitor.check_all_services()

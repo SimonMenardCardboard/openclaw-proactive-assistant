@@ -13,8 +13,9 @@ Flow:
 
 import sys
 import json
+import sqlite3
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict
 
 # Add modules to path
@@ -27,6 +28,54 @@ from telegram_notifier import TelegramNotifier
 from multi_account_email_analyzer import MultiAccountEmailAnalyzer
 from multi_account_calendar_analyzer import MultiAccountCalendarAnalyzer
 from approval_workflow import ApprovalWorkflow
+
+# ── V8 Circuit Breaker ────────────────────────────────────────────────────────
+CIRCUIT_BREAKER_DB = Path.home() / ".openclaw/workspace/logs/v8_circuit_breaker.db"
+
+def _send_circuit_breaker_alert(message: str):
+    """Send a Telegram alert for circuit breaker events."""
+    import os, requests
+    token = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+    if not token:
+        zshrc = Path.home() / '.zshrc'
+        try:
+            for line in zshrc.read_text().splitlines():
+                if line.startswith('TELEGRAM_BOT_TOKEN='):
+                    token = line.split('=', 1)[1].strip().strip("'\"")
+                    break
+        except Exception:
+            pass
+    if not token:
+        print(f'[circuit_breaker] ALERT (no token): {message}')
+        return
+    try:
+        requests.post(
+            f'https://api.telegram.org/bot{token}/sendMessage',
+            json={'chat_id': '8451730454', 'text': message, 'parse_mode': 'Markdown'},
+            timeout=10,
+        )
+    except Exception as e:
+        print(f'[circuit_breaker] Telegram send failed: {e}')
+
+def _check_circuit_breaker() -> bool:
+    """Pause V8 deployments if > 3 deployed in last hour. Returns True if OK to proceed."""
+    CIRCUIT_BREAKER_DB.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(CIRCUIT_BREAKER_DB))
+    conn.execute("CREATE TABLE IF NOT EXISTS deployments (ts TEXT)")
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    count = conn.execute("SELECT COUNT(*) FROM deployments WHERE ts > ?", (cutoff,)).fetchone()[0]
+    if count >= 3:
+        _send_circuit_breaker_alert(
+            "⚠️ *V8 Circuit Breaker Tripped*\n\n"
+            "3+ V8 optimizations deployed in the last hour. Auto-deploy paused.\n"
+            "Manual review required before next deployment."
+        )
+        conn.close()
+        return False
+    conn.execute("INSERT INTO deployments VALUES (?)", (datetime.now(timezone.utc).isoformat(),))
+    conn.commit()
+    conn.close()
+    return True
 
 # NEW: Import all 4 critical analyzers
 try:
@@ -567,6 +616,10 @@ class AutoOptimizer:
             
             # Deploy with full pipeline (sandbox + approval + deploy if auto-approved)
             try:
+                # Circuit breaker: limit to 3 deployments per hour
+                if not _check_circuit_breaker():
+                    print(f"🛑 Circuit breaker tripped — skipping deployment of {script_name}")
+                    continue
                 deployment_result = self.deployment_manager.deploy_optimization(
                     pattern=pattern,
                     generated_code=result

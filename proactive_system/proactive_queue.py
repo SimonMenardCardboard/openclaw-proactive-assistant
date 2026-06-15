@@ -22,7 +22,7 @@ class ProactiveQueue:
         self._ensure_schema()
     
     def _ensure_schema(self):
-        """Ensure database schema exists."""
+        """Ensure database schema exists, including all columns used by recommendations API."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS proactive_queue (
@@ -33,25 +33,65 @@ class ProactiveQueue:
                     context JSON,
                     delivered BOOLEAN DEFAULT 0,
                     delivered_at TIMESTAMP,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    message_type TEXT DEFAULT 'intelligence',
+                    user_facing BOOLEAN DEFAULT 1,
+                    status TEXT DEFAULT 'pending',
+                    snoozed_until TIMESTAMP,
+                    pattern_key TEXT
                 )
             """)
             conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_undelivered 
+                CREATE INDEX IF NOT EXISTS idx_undelivered
                 ON proactive_queue(delivered, priority, created_at)
             """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_status
+                ON proactive_queue(status, priority, created_at)
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_user_facing
+                ON proactive_queue(user_facing, priority, created_at)
+            """)
+            # Migrate existing DBs: add missing columns without failing
+            migrations = [
+                "ALTER TABLE proactive_queue ADD COLUMN message_type TEXT DEFAULT 'intelligence'",
+                "ALTER TABLE proactive_queue ADD COLUMN user_facing BOOLEAN DEFAULT 1",
+                "ALTER TABLE proactive_queue ADD COLUMN status TEXT DEFAULT 'pending'",
+                "ALTER TABLE proactive_queue ADD COLUMN snoozed_until TIMESTAMP",
+                "ALTER TABLE proactive_queue ADD COLUMN pattern_key TEXT",
+            ]
+            for sql in migrations:
+                try:
+                    conn.execute(sql)
+                except Exception:
+                    pass  # Column already exists
     
-    def add(self, source: str, message: str, priority: int = 3, context: Optional[Dict] = None):
+    def add(self, source: str, message: str, priority: int = 3,
+            context: Optional[Dict] = None, pattern_key: str = None):
         """Add a recommendation to the queue with automatic classification."""
-        # Classify message type
         message_type = self._classify_message(source)
         user_facing = self._is_user_facing(source, priority)
-        
+
         with sqlite3.connect(self.db_path) as conn:
+            # Deduplication: skip if same source+pattern delivered in last 7 days
+            existing = conn.execute("""
+                SELECT id FROM proactive_queue
+                WHERE source = ? AND (pattern_key = ? OR (pattern_key IS NULL AND ? IS NULL))
+                AND delivered = 1
+                AND created_at > datetime('now', '-7 days')
+                LIMIT 1
+            """, (source, pattern_key, pattern_key)).fetchone()
+            if existing:
+                return None
+
             conn.execute("""
-                INSERT INTO proactive_queue (source, message, priority, context, message_type, user_facing)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (source, message, priority, json.dumps(context) if context else None, message_type, user_facing))
+                INSERT INTO proactive_queue
+                (source, message, priority, context, message_type, user_facing, pattern_key)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (source, message, priority,
+                  json.dumps(context) if context else None,
+                  message_type, user_facing, pattern_key))
             return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     
     def _classify_message(self, source: str) -> str:
