@@ -24,6 +24,7 @@ DATA_DIR = TM_HOME / 'data'
 CONFIG_DIR = TM_HOME / 'config'
 QUEUE_DB = TM_HOME / 'proactive_queue.db'
 CONTEXT_DB = TM_HOME / 'context.db'
+MEMORY_DB = TM_HOME / 'tm_memory.db'   # Engram memory layer (separate from queue)
 
 # Ensure dirs exist
 for _dir in (LOGS_DIR, DATA_DIR, CONFIG_DIR):
